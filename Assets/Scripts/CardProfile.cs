@@ -108,7 +108,7 @@ public class CardProfile : MonoBehaviour
             pointsForts2.text = card.StrongPoints;
             pointsFaible2.text = card.WeakPoints;
 
-            var sprite = SpecialCardManager.Instance.GetImageFromId(card.AttachedDocupentId);
+            var sprite = SpecialInGameManager.Instance.GetImageFromId(card.AttachedDocupentId);
             if (sprite != null)
             {
                 photo2.sprite = sprite;
@@ -135,7 +135,7 @@ public class CardProfile : MonoBehaviour
                 pointsForts3.text = card.StrongPoints;
                 pointsFaible3.text = card.WeakPoints;
 
-                var sprite = SpecialCardManager.Instance.GetImageFromId(card.AttachedDocupentId);
+                var sprite = SpecialInGameManager.Instance.GetImageFromId(card.AttachedDocupentId);
                 if (sprite != null)
                 {
                     photo3.sprite = sprite;

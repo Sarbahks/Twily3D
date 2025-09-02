@@ -42,7 +42,16 @@ public class DashBoardGame : MonoBehaviour
 
     public void OpenDashBoard()
     {
+        SyncDashboardData();
 
+        _canvasGroup.blocksRaycasts = true;
+        _canvasGroup.alpha = 1.0f;
+
+
+    }
+
+    public void SyncDashboardData()
+    {
         //actualize dashboard based on the gamedata
         var gameState = LobbySceneManager.Instance.CurrentGameState;
         SetBudgetValueFromServer(gameState.SpecialCardBudgetResponse);
@@ -50,30 +59,20 @@ public class DashBoardGame : MonoBehaviour
         SetupChoiceManagement(gameState);
         SetupCrisisButton(gameState);
         SetupBudgetButton(gameState);
-        _canvasGroup.blocksRaycasts = true;
-        _canvasGroup.alpha = 1.0f;
 
-
+        PlaceCardAndataOnTheEmplacement(gameState);
     }
-
 
     private void SetupCrisisButton(GameStateData gameStateData)
     {
-        if (LobbySceneManager.Instance.IsPlayerInGame())
+        if (!LobbySceneManager.Instance.IsPlayerInGame())
         {
             buttonValidateCrisis.gameObject.SetActive(false);
-            return;
+            buttonValidateCrisis.gameObject.SetActive(false);
+
         }
 
 
-        if (gameStateData.SpecialCardCrisisResponse.FirstCause != null && gameStateData.SpecialCardCrisisResponse.FirstCause != string.Empty &&
-            gameStateData.SpecialCardCrisisResponse.SecondCause != null && gameStateData.SpecialCardCrisisResponse.SecondCause != string.Empty &&
-            gameStateData.SpecialCardCrisisResponse.ThirdCause != null && gameStateData.SpecialCardCrisisResponse.ThirdCause != string.Empty &&
-            gameStateData.SpecialCardCrisisResponse.FourthCause != null && gameStateData.SpecialCardCrisisResponse.FourthCause != string.Empty &&
-            gameStateData.SpecialCardCrisisResponse.FifthCause != null && gameStateData.SpecialCardCrisisResponse.FifthCause != string.Empty )
-        {
-            buttonValidateCrisis.gameObject.SetActive(false);
-        }
     }
     private void SetupBudgetButton(GameStateData gameStateData)
     {
@@ -121,25 +120,38 @@ public class DashBoardGame : MonoBehaviour
 
     public void PlaceCardAndataOnTheEmplacement(GameStateData data)
     {
-     
         foreach (var player in data.Players)
         {
             if (playerEmplacements.TryGetValue(player.roleGame, out var emplacements))
             {
-                for (int i = 0; i < player.cardsProfile.Count && i < emplacements.Count; i++)
+                for (int i = 0; i < emplacements.Count; i++)
                 {
-                    // Spawn card prefab as a child of the emplacement
-                    var go = Instantiate(cardPrefab, emplacements[i].transform.position, Quaternion.identity, emplacements[i].transform);
-                    var script = go.GetComponent<CardProfile>();
-                    if(script != null)
+                    var emplacement = emplacements[i];
+
+                    if (i < player.cardsProfile.Count)
                     {
-                        script.SetupCard(player.cardsProfile[i]);
+                        // Get the child GameObject of the emplacement
+                        var child = emplacement.transform.GetChild(0).gameObject;
+                        child.SetActive(true);
+
+                        // Get the CardProfile script from the child
+                        var script = child.GetComponent<CardProfile>();
+                        if (script != null)
+                        {
+                            script.SetupCard(player.cardsProfile[i]);
+                        }
+                    }
+                    else
+                    {
+                        // Deactivate unused emplacement's child
+                        var child = emplacement.transform.GetChild(0).gameObject;
+                        child.SetActive(false);
                     }
                 }
             }
-  
         }
     }
+
 
     public void RemoveCardAndDataOnTheEmplacement()
     {
@@ -411,5 +423,15 @@ public class DashBoardGame : MonoBehaviour
         inputThridCause.text = causes.ThirdCause;
         inputFourthCause.text = causes.FourthCause;
         inputFifthCause.text = causes.FifthCause;
+    }
+
+    public void SendCrisis()
+    {
+        WsClient.Instance.SubmitCrisisToServer();
+    }
+
+    public void SendBudget()
+    {
+        WsClient.Instance.SubmitBudgetToServer();
     }
 }

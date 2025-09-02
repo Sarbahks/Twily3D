@@ -43,6 +43,8 @@ public class AreaBoard : MonoBehaviour
                             return mainPlateformType3;
                         case 4:
                             return mainPlateformType4;
+                        case 5:
+                            return mainPlateformType5;
                     }
                     break;
                 case 1:
@@ -57,6 +59,8 @@ public class AreaBoard : MonoBehaviour
                             return ring1Type3;
                         case 4:
                             return ring1Type4;
+                        case 5:
+                            return ring1Type5;
                     }
                     break;
                 case 2:
@@ -71,6 +75,8 @@ public class AreaBoard : MonoBehaviour
                             return ring2Type3;
                         case 4:
                             return ring2Type4;
+                        case 5:
+                            return ring2Type5;
                     }
                     break;
                 case 3:
@@ -85,6 +91,8 @@ public class AreaBoard : MonoBehaviour
                             return ring3Type3;
                         case 4:
                             return ring3Type4;
+                        case 5:
+                            return ring3Type5;
                     }
                     break;
 
@@ -201,6 +209,18 @@ public class AreaBoard : MonoBehaviour
     [SerializeField]
     private GameObject ring3Type4;
 
+    [SerializeField]
+    private GameObject mainPlateformType5;
+
+    [SerializeField]
+    private GameObject ring1Type5;
+
+    [SerializeField]
+    private GameObject ring2Type5;
+
+    [SerializeField]
+    private GameObject ring3Type5;
+
 
 
 
@@ -219,6 +239,8 @@ public class AreaBoard : MonoBehaviour
        [SerializeField]
     private GameObject type4;
 
+    [SerializeField]
+    private GameObject type5;
 
     private void SetObjectById()
     {
@@ -241,6 +263,10 @@ public class AreaBoard : MonoBehaviour
             case 4:
                 typeBase.SetActive(false);
                 type4.SetActive(true);
+                break;
+            case 5:
+                typeBase.SetActive(false);
+                type5.SetActive(true);
                 break;
         }
 
@@ -281,7 +307,13 @@ public class AreaBoard : MonoBehaviour
             if (ring1Type4) ring1Type4.SetActive(on4);
             if (ring2Type4) ring2Type4.SetActive(on4);
             if (ring3Type4) ring3Type4.SetActive(on4);
-        
+
+        // type 5
+        if (mainPlateformType5) mainPlateformType5.SetActive(on4);
+        if (ring1Type5) ring1Type5.SetActive(on4);
+        if (ring2Type5) ring2Type5.SetActive(on4);
+        if (ring3Type5) ring3Type5.SetActive(on4);
+
     }
 
 

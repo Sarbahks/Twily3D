@@ -100,14 +100,23 @@ public class ActualCard : MonoBehaviour
 
     public void SendResponse()
     {
-        LobbySceneManager.Instance.OnValidateAnswer(responseInput.text, boardCase.Id);
+        boardCase.Response = responseInput.text;
+        LobbySceneManager.Instance.OnValidateAnswer(boardCase);
+        validationButton.gameObject.SetActive(false);
     }
 
     //TODO change it so it matche the new card
     public void Initialize(CardData card, bool isplayerTurn)
     {
         boardCase = card;
-
+        if(card.AttachedDocupentId > 0)
+        {
+            linkedButton.gameObject.SetActive(true);
+        }
+        else
+        {
+            linkedButton.gameObject.SetActive(true);
+        }
         id = card.Id;
         SetupCardBG(card);
 
@@ -138,6 +147,10 @@ public class ActualCard : MonoBehaviour
                         Debug.LogWarning($"Unknown idArea: {cd.IdArea}");
                         break;
                 }
+                title.text = cd.Title;
+                question.text = cd.Question;
+                consigne.text = cd.Instruction;
+
                 break;
 
             case TypeCard.BONUS:
@@ -181,8 +194,13 @@ public class ActualCard : MonoBehaviour
 
 
     }
+    [SerializeField]
+    private GameObject linkedButton;
 
-
+    public void OpenLinkedDoc()
+    {
+        SpecialInGameManager.Instance.OpenCardLinkedDoc(boardCase.AttachedDocupentId);  
+            }
 
 
 }

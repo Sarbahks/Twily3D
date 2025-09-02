@@ -39,15 +39,22 @@ public class BigSalonLobby : MonoBehaviour
     {
         Helpers.Instance.ClearContainer(activesGamesOnTheSalon);
         Helpers.Instance.ClearContainer(connectedOnTheBigSalon);
+        Helpers.Instance.ClearContainer(salonAreas);
 
-
-        foreach(var connected in salonInfo.UserInBig)
+        if (salonInfo.UserInBig != null)
         {
-            var co = Instantiate(prefabParticipantBigSalon, connectedOnTheBigSalon);
-            var roster = co.GetComponent<RosterItem>();
-            
-            roster.Setup(connected);
+
+            foreach (var connected in salonInfo.UserInBig)
+            {
+                var co = Instantiate(prefabParticipantBigSalon, connectedOnTheBigSalon);
+                var roster = co.GetComponent<RosterItem>();
+
+                roster.Setup(connected);
+            }
         }
+
+        if(salonInfo.Salons != null)
+        {
 
         foreach(var subsalon in salonInfo.Salons)
         {
@@ -67,6 +74,7 @@ public class BigSalonLobby : MonoBehaviour
                 salonScript.SetupSalonItem(subsalon);
             }
 
+        }
         }
     }
 

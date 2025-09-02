@@ -3,6 +3,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using UnityEngine;
 
@@ -99,9 +100,9 @@ public class WsClient : MonoBehaviour
                         if (resp.Joined)
                         {
                             Debug.Log($"Joined salon {resp.SalonId}");
-                      
+
                             //actualize salons data
-                            GetSalons();
+                            GetLobby(resp.SalonId);
 
 
 
@@ -131,6 +132,8 @@ public class WsClient : MonoBehaviour
                     {
                         LobbySceneManager.Instance.SetupBigSalonUI(salon);
                         NotificationCenter.Instance.SetupNotificationCenter(salon);
+
+               
                     }
                 }
                 if (type == "teamJoined")
@@ -143,7 +146,7 @@ public class WsClient : MonoBehaviour
                     {
                         Debug.Log($"Joined team {teamId} in salon {salonId}");
                         // UI: optionally show success; the "actualizeLobby" broadcast will bring the fresh state
-                        GetLobby(salonId);//change that for something with a return, and then, do a gameupdate if game != null or is started
+                       // GetLobby(salonId);//change that for something with a return, and then, do a gameupdate if game != null or is started
                     }
                     else
                     {
@@ -167,7 +170,9 @@ public class WsClient : MonoBehaviour
                 {
                     var data = jobj["data"]?.ToObject<InitializeGamePayload>();
                     // build board, rules, etc. on client as needed...
-                   var game =  LobbySceneManager.Instance.SetUpGameFromServer(data.Game);
+                    LobbySceneManager.Instance.SyncDataFromServer(data.Game);
+                    var game =  LobbySceneManager.Instance.SetUpGameFromServer(data.Game);
+
                     // then send back:
                     var envelope = new Envelope<GameBoardInitializedPayload>
                     {
@@ -189,11 +194,12 @@ public class WsClient : MonoBehaviour
                     Debug.Log("Start game and choose profile");
 
                     LobbySceneManager.Instance.SetUpGameFromServer(payload.Game);
-
+                    LobbySceneManager.Instance.SyncDataFromServer(payload.Game);
                     BoardManager.Instance.InitializeGameFromData(payload.Game);
                     LobbySceneManager.Instance.SyncDataFromServer(payload.Game);
                     GameScript.Instance.StartTheGame();
-                   
+
+                    GetLobby(LobbySceneManager.Instance.CurrentTeamId);
                    
             
                 }
@@ -209,6 +215,8 @@ public class WsClient : MonoBehaviour
                     // Apply authoritative GameState
                     LobbySceneManager.Instance.SyncDataFromServer(payload);
 
+                    GameScript.Instance.SetProfileChoice(payload);
+
                     // If step advanced, move UI accordingly
                     if (payload.Step == StepGameType.ROLECHOSEN)
                     {
@@ -217,13 +225,147 @@ public class WsClient : MonoBehaviour
 
                  
                 }
+                if (type == "cardChosen")
+                {
+                    var payload = jobj["data"]?.ToObject<ChoseCardResponse>();
+                    if (payload == null)
+                    {
+                        Debug.LogWarning("cardChosen missing payload");
+                        return;
+                    }
+
+                    // Update local state: mark the card as unlocked
+                    LobbySceneManager.Instance.CurrentGameState = payload.Game; 
+                    var game = LobbySceneManager.Instance.CurrentGameState;
+                    game.CurrentPosition = payload.IdCard;
+                    if (game != null && game.Board != null)
+                    {
+                        var card = game.Board.FirstOrDefault(c => c.Id == payload.IdCard);
+                        if (card != null)
+                        {
+                            card.Unlocked = true;
+                            LobbySceneManager.Instance.SyncDataFromServer(payload.Game);
+                            //  BoardManager.Instance.SetupBoardFromServer(payload.Game);
+                        }
+
+                      
+                            AnimationManager.Instance.MovePawnToTheCaseId(card);
+
+                        
+                    }
+
+                 
+                    LobbySceneManager.Instance.ShowCardPicked();
+                    //actualize card, if the car and unlock response for the player that got it
+                    //BoardManager.Instance.RefreshUnlockedVisual(payload.IdCard); // your own UI hook
+                }
+                if (type == "cardAnswered")
+                {
+                    var payload = jobj["data"]?.ToObject<AnswerCardResponse>();
+                    if (payload?.Game == null)
+                    {
+                        Debug.LogWarning("cardAnswered missing payload.Game");
+                        return;
+                    }
+
+                    // Apply authoritative GameState
+                    LobbySceneManager.Instance.SyncDataFromServer(payload.Game);
+                  //  BoardManager.Instance.InitializeGameFromData(payload.Game);
+                    //GameScript.Instance.SetCurrentGameState(payload.Game);
+
+                    // Optional: UI hooks
+                    // BoardManager.Instance.RefreshAfterAnswer();
+                    // TurnManager.Instance.OnTurnAdvanced(payload.Game.CurrentPlayerId)
+                    //
+                    
+                    if(payload == null)
+                    {
+                        var card = payload.Game.Board.FirstOrDefault(x=> x.Id ==  payload.Game.CurrentPosition);
+                        if(card != null)
+                        {
+                            if(card.NeedProEvaluation && payload.Game.CurrentPlayerId == Authentificator.Instance.Id)
+                            {
+                                var newnotif = new NotificationTwily
+                                {
+                                    idNotification = new GUI().ToString(),
+                                    notificationInfo = Authentificator.Instance.Username,
+                                    typeNotification = TypeNotification.VALIDATION,
+                                    idSalonNotif = LobbySceneManager.Instance.CurrentBigSalonId,
+                                    idTeamNotif = LobbySceneManager.Instance.CurrentTeamId != null ? LobbySceneManager.Instance.CurrentTeamId : string.Empty,
+                                    idUserNotif = Authentificator.Instance.Id,
+                                    notificationTime = DateTime.Now
+                                };
+                            }
+                        }
+                    }
+
+                    //check if i need too select a team, if im a player i need to chose my team depending of the manager
+                    LobbySceneManager.Instance.CheckChoseoseFirstTeam();
+                }
+                if (type == "playerProfileCardsChosen")
+                {
+                    var payload = jobj["data"]?.ToObject<ChoseProfileResponse>();
+                    if (payload?.Game == null) return;
+
+                    LobbySceneManager.Instance.SyncDataFromServer(payload.Game);
+               
+                    if(payload.Game.Step == StepGameType.SELECTTEAM)
+                    {
+                        LobbySceneManager.Instance.StopSelectionProfile();
+                    }
+
+
+                    // If you want to move UI forward once profiles are set, handle here.
+                }
+                if (type == "notificationSent" || type == "notificationDeleted")
+                {
+                    var big = jobj["data"]?.ToObject<BigSalonInfo>();
+                    if (big != null)
+                    {
+                        // Refresh local salon model/UI using BigSalonInfo.Notifications
+                        //  LobbySceneManager.Instance?.OnBigSalonUpdated(big);
+                        NotificationCenter.Instance.SetupNotificationCenter(big);
+                    }
+                }
+
+                if (type == "cardValidatedAdmin")
+                {
+                    var payload = jobj["data"]?.ToObject<ValidateCardAdminResponse>();
+                    if (payload?.Game == null) return;
+
+                    LobbySceneManager.Instance.SyncDataFromServerMinimalist(payload.Game);
+
+
+   
+                }
+                if (type == "budgetSubmitted")
+                {
+                    var payload = jobj["data"]?.ToObject<BudgetSubmittedResponse>();
+                    if (payload?.Game == null) return;
+
+                    LobbySceneManager.Instance.SyncDataFromServerMinimalist(payload.Game);
+                    InGameMenuManager.Instance.DashBoard.SyncDashboardData();
+
+                }
+
+                if (type == "crisisSubmitted")
+                {
+                    var payload = jobj["data"]?.ToObject<CrisisSubmittedResponse>();
+                    if (payload?.Game == null) return;
+
+                    LobbySceneManager.Instance.SyncDataFromServerMinimalist(payload.Game);
+                    InGameMenuManager.Instance.DashBoard.SyncDashboardData();
+                }
+
 
                 else if (type == "error")
                 {
                     Debug.LogWarning("Server error: " + jobj["data"]?.ToString());
                 }
             }
-            catch { /* non JSON or parse error */ }
+            catch(Exception e) {
+                Debug.LogException(e);
+            }
         };
 
         ws.OnError += e => Debug.LogError("WS error: " + e);
@@ -307,6 +449,19 @@ public class WsClient : MonoBehaviour
         _ = ws.SendText(json);
     }
 
+    public void ChoseCardOnGame(string idSalon, string teamId, int idCard)
+    {
+        var chosenCardRequest = new ChoseCardRequest
+        {
+            IdCard = idCard,
+            IdSalon = idSalon,
+            IdTeam = teamId
+        };
+
+        var envelope = new Envelope<ChoseCardRequest> { type = "choseCard", data = chosenCardRequest  };
+        var json = JsonConvert.SerializeObject(envelope);
+        _ = ws.SendText(json);
+    }
 
     public void GetLobby(string salonId)
     {
@@ -349,7 +504,60 @@ public class WsClient : MonoBehaviour
         _ = ws.SendText(json);
     }
 
+    public void AnswerCard(string idBigSalon, string idTeam, CardData cardData)
+    {
+        AnswerCardRequest req = new AnswerCardRequest
+        {
+          IdSalon = idBigSalon,
+          IdTeam = idTeam,
+          CardAnsewerd = cardData,
+          IdPlayerAnswered = Authentificator.Instance.Id
+        };
+        var envelope = new Envelope<AnswerCardRequest> { type = "answerCard", data = req };
+        var json = JsonConvert.SerializeObject(envelope);
+        _ = ws.SendText(json);
+    }
 
+
+    public void SelectTeamPlayer(List<CardData> chosenCards)
+    {
+        var req = new ChoseProfileRequest
+        {
+            CardsChosen = chosenCards,
+            IdSalon = LobbySceneManager.Instance.CurrentBigSalonId,
+            IdTeam = LobbySceneManager.Instance.CurrentTeamId,
+            UserInfo = Authentificator.Instance.GetUser()
+        };
+
+        var envelope = new Envelope<ChoseProfileRequest> { type = "choseProfile", data = req };
+        var json = JsonConvert.SerializeObject(envelope);
+        _ = ws.SendText(json);
+    }
+
+    public void SendNotification(string salonId, NotificationTwily notifToSend)
+    {
+        var req = new SendNotificationRequest
+        {
+            IdSalon = salonId,
+            Notification = notifToSend
+        };
+        var envelope = new Envelope<SendNotificationRequest> { type = "sendNotif", data = req };
+        var json = JsonConvert.SerializeObject(envelope);
+        _ = ws.SendText(json);
+    }
+
+    public void DeleteDotification(string salonId, string idNotifToDelete)
+    {
+        var req = new DeleteNotificationRequest
+        {
+            IdSalon = salonId,
+            IdNotification = idNotifToDelete
+        };
+        // NOTE: was "sendNotif" by mistake—use "deleteNotif"
+        var envelope = new Envelope<DeleteNotificationRequest> { type = "deleteNotif", data = req };
+        var json = JsonConvert.SerializeObject(envelope);
+        _ = ws.SendText(json);
+    }
 
     private void OnDestroy()
     {
@@ -380,5 +588,53 @@ public class WsClient : MonoBehaviour
             Debug.LogWarning("OnApplicationQuit cleanup error: " + ex);
         }
     }
+
+
+    public void ValidateCardAdmin(string currentBigSalonId, string currentTeamId, int cardId, EvaluationResult newState)
+    {
+        var req = new ValidateCardAdminRequest
+        {
+            IdSalon = currentBigSalonId,
+            IdTeam = currentTeamId,
+            CardId = cardId,
+            NewState = newState
+        };
+
+        var env = new Envelope<ValidateCardAdminRequest> { type = "validateCardAdmin", data = req };
+        var json = JsonConvert.SerializeObject(env);
+        _ = ws.SendText(json);
+    }
+
+
+    public void SubmitBudgetToServer()
+    {
+        var budget = InGameMenuManager.Instance.DashBoard.GetBudgetValueFromBoard(); // your function
+        var req = new SubmitBudgetRequest
+        {
+            IdSalon = LobbySceneManager.Instance.CurrentBigSalonId,
+            IdTeam = LobbySceneManager.Instance.CurrentTeamId,
+            Budget = budget,
+            UserId = Authentificator.Instance.Id
+        };
+
+        var env = new Envelope<SubmitBudgetRequest> { type = "submitBudget", data = req };
+        _ = ws.SendText(JsonConvert.SerializeObject(env));
+    }
+
+    public void SubmitCrisisToServer()
+    {
+        var crisis = InGameMenuManager.Instance.DashBoard.GetCrisisValue(); // your function
+        var req = new SubmitCrisisRequest
+        {
+            IdSalon = LobbySceneManager.Instance.CurrentBigSalonId,
+            IdTeam = LobbySceneManager.Instance.CurrentTeamId,
+            Crisis = crisis,
+            UserId = Authentificator.Instance.Id
+        };
+
+        var env = new Envelope<SubmitCrisisRequest> { type = "submitCrisis", data = req };
+        _ = ws.SendText(JsonConvert.SerializeObject(env));
+    }
+
 
 }

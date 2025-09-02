@@ -28,6 +28,8 @@ public class AnimationManager : MonoBehaviour
 
     private JObject lastGameState;
 
+
+
     public void LogTurnResume(JObject currentGame)
     {
         if (currentGame == null) return;
@@ -116,9 +118,53 @@ public class AnimationManager : MonoBehaviour
 
     [SerializeField]
     private int randomIteration;
+
+    [SerializeField]
+    private bool test;
+    private void Update()
+    {
+        if (test)
+        {
+            test = false;
+            GetPossibleCases(1);
+            GetPossibleCases(2);
+            GetPossibleCases(3);
+            GetPossibleCases(4);
+            GetPossibleCases(5);
+        }
+    }
+
+    public List<CaseBoard> GetPossibleCases(int areaId)
+    {
+        List<CaseBoard> caseBoards = new List<CaseBoard>();
+        var area = LobbySceneManager.Instance.CurrentGameState.AreaStates.FirstOrDefault(x => x.idArea == areaId);
+
+        foreach(var cb in area.casesOnBoard)
+        {
+            var correspondingCard = LobbySceneManager.Instance.CurrentGameState.Board.FirstOrDefault(x => x.Id == cb.idCardOn);
+            if (correspondingCard != null)
+            {
+                if(correspondingCard.Unlocked)
+                {
+                    BoardManager.Instance.GetBoardCaseByCardId(correspondingCard.Id).Unlock();
+                }
+                else
+                {
+                   var toadd = BoardManager.Instance.GetBoardCaseByCardId(correspondingCard.Id);
+                    if(toadd != null)
+                    {
+                        caseBoards.Add(toadd);
+                    }
+                }
+            }
+        }
+
+        return caseBoards;
+    }
+
     public async void AnimationSelectionCard(AreaBoard area, CaseBoard finalCase, CardData card)
     {
-        var casesArea = area.CasesOnArea.Where(x => !x.Visited).ToList();
+        var casesArea = GetPossibleCases(area.IdArea);
 
         if (casesArea.Count == 0)
         {
@@ -147,9 +193,9 @@ public class AnimationManager : MonoBehaviour
         await Task.Delay(1000);
 
         randomBoxe.SetActive(false);
-        MovePawnToTheCase(finalCase);
+    
 
-        finalCase.Visited = true;
+
 
         LobbySceneManager.Instance.SendCardServerAfterSelection(card);
 
@@ -200,32 +246,8 @@ public class AnimationManager : MonoBehaviour
     }
 
 
-    public bool CaseMatchCard(CardData card, CaseBoard caseBoard) 
-    {
-        if (caseBoard.TypeCase == TypeCard.QUESTION)
-        {
-            if (card.Id == caseBoard.CaseData?.Id)
-            {
-                return true;
-            }
-            return false;
-        }
-        else if (caseBoard.TypeCase == card.TypeCard)
-        {
-            return true;
-        }
-        return false;  
-    }
+  
 
-
-    /*
-         int questionCasesNumber = casesarea.Where(x => x.TypeCase == TypeCard.QUESTION).ToList().Count;
-        int bonusCasesNumber = casesarea.Where(x => x.TypeCase == TypeCard.QUESTION).ToList().Count;
-        int defiCasesNumber = casesarea.Where(x => x.TypeCase == TypeCard.QUESTION).ToList().Count;
-        int kpiCasesNumber = casesarea.Where(x => x.TypeCase == TypeCard.QUESTION).ToList().Count;
-        int profileCasesNumber = casesarea.Where(x => x.TypeCase == TypeCard.QUESTION).ToList().Count;
-        int profileManagementCasesNumber = casesarea.Where(x => x.TypeCase == TypeCard.QUESTION).ToList().Count;
-*/
 
 
 
@@ -262,93 +284,24 @@ public class AnimationManager : MonoBehaviour
     }
 
     
-    public void MovePawnToTheCase(CaseBoard caseBoard)
+    public void MovePawnToTheCaseId(CardData card)
     {
 
         CameraTwily.Instance.SetFocusPlayer(true);
 
+        var caseboard = BoardManager.Instance.GetCaseBoardFromData(card);
 
  //       randomBoxe.SetActive(false);
 
-        if (pawn == null || caseBoard == null)
+        if (pawn == null || caseboard == null)
             return;
 
-        MoveFromAnAreaToAnOther(caseBoard);
+        MoveFromAnAreaToAnOther(caseboard);
         CameraTwily.Instance.SetFocusPlayer(false);
+
+        
     }
 
-    public void MovePawnToTheCaseAsClient(CardData card)
-    {
-        if (card == null)
-        {
-            Debug.LogWarning("MovePawnToTheCaseAsClient called with null card.");
-            return;
-        }
-
-        if (pawn == null)
-        {
-            if (!gameStarted)
-                SpawnPawn();
-
-            if (pawn == null)
-            {
-                Debug.LogWarning("Pawn still null after SpawnPawn.");
-                return;
-            }
-        }
-
-        var board = BoardManager.Instance;
-        if (board == null)
-        {
-            Debug.LogError("BoardManager.Instance is null.");
-            return;
-        }
-
-        // IMPORTANT: use the area id from the card, not the card id.
-        // Replace 'card.areaId' with your actual field name that represents the area.
-        var area = board.GetAreaById(card.IdArea);
-        if (area == null || area.CasesOnArea == null || area.CasesOnArea.Count == 0)
-        {
-            Debug.LogWarning($"Area not found or empty for areaId={card.IdArea}.");
-            return;
-        }
-
-        CaseBoard caseBoard = null;
-
-        foreach (var caseb in area.CasesOnArea)
-        {
-            if (card.TypeCard == TypeCard.QUESTION)
-            {
-                // If your card has a dedicated case id, prefer that (e.g., card.caseId).
-                // Fallback to card.id only if that is really the target case id.
-                var targetCaseId = card.Id != 0 ? card.Id : card.Id;
-
-                if (caseb.CaseData != null && caseb.CaseData.Id == targetCaseId)
-                {
-                    caseBoard = caseb;
-                    break; // leave the loop after a match
-                }
-            }
-            else
-            {
-                if (caseb.TypeCase == card.TypeCard)
-                {
-                    caseBoard = caseb;
-                    break; // leave the loop after a match
-                }
-            }
-        }
-
-        if (caseBoard == null)
-        {
-            Debug.LogWarning($"No matching case in area {card.IdArea} for card {card.Id} ({card.TypeCard}).");
-            return;
-        }
-
-        caseBoard.Visited = true;
-
-        MovePawnToTheCase(caseBoard);
-    }
 
 
 
@@ -381,7 +334,7 @@ public class AnimationManager : MonoBehaviour
 
     // exit(current) -> entry(target) -> case (straight lines, XZ only)
     private IEnumerator MoveFlow(CaseBoard caseBoard)
-    {
+    {/*
         int areaIdToGo = caseBoard.CaseData.IdArea;
         int actualArea = BoardManager.Instance.GetCurrentActiveArea();
         if (actualArea == 0) actualArea = 1;
@@ -398,12 +351,12 @@ public class AnimationManager : MonoBehaviour
             if (to != null && to.Entry != null)
                 yield return StartCoroutine(MoveToPosition(to.Entry.position, moveSpeed));
         }
-
+        */
         // finally, go to the case
         yield return StartCoroutine(MoveToPosition(caseBoard.transform.position, moveSpeed));
 
 
-        caseBoard.Unlock();
+      
 
         Debug.Log("Arrived to the case");
         _moveCo = null;

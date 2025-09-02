@@ -16,8 +16,21 @@ public class NotificationItem : MonoBehaviour
     public void SetupNotifItem(string idSalon,string salonName,  NotificationTwily notif )
     {
         this.idSalon = idSalon;
-        salonNotif.text = salonName;
-        descriNotif.text = notif.notificationInfo;
+        salonNotif.text = notif.notificationInfo + " demande une intervention";
+
+        switch (notif.typeNotification)
+        {
+            case TypeNotification.VALIDATION:
+                descriNotif.text = "Il s'agit d'une validation de carte";
+                break;
+            case TypeNotification.PM:
+                break;
+            case TypeNotification.ASKJOIN:
+                break;
+            case TypeNotification.STUCK:
+                break;
+        }
+    
     }
 
     public void GoToSalon()

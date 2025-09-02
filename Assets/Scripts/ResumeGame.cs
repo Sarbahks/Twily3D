@@ -41,9 +41,16 @@ public class ResumeGame : MonoBehaviour
 
         foreach(var player in gameState.Players)
         {
+            if (player.userInfo == null)
+                continue;
+
             var go = Instantiate(playerPrefab, playerArea);
             var script = go.GetComponent<ParticipantResumeItem>();
-            script.SetupParticipant(player.userInfo.Name, player.score);
+            if(script != null)
+            {
+                script.SetupParticipant(player.userInfo.Name, player.score);
+            }
+       
         }
     }
 

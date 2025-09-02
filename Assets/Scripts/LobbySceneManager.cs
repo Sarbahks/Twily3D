@@ -11,6 +11,7 @@ using Unity.VisualScripting.Antlr3.Runtime;
 using System.Linq;
 using System.Text.Json.Serialization;
 using Unity.VisualScripting;
+using SocketIOClient.Transport;
 /// <summary>
 /// Replaces the previous Socket.IO implementation with NativeWebSocket.
 /// Connects to the ws-lobby-server (plain WebSockets) and handles salon creation, listing, joining, leaving, and deletion.
@@ -31,11 +32,15 @@ public class LobbySceneManager : MonoBehaviour
         }
     }
 
+    [SerializeField]
+    private GameObject TeamChoiceObject;
+
     private string currentTeamId;
 
     public BigSalonInfo currentBigSalon;
     public GameStateData CurrentGameState { get => currentGameState; set => currentGameState = value; }
     public string CurrentTeamId { get => currentTeamId; set => currentTeamId = value; }
+    public string CurrentBigSalonId { get => currentBigSalonId; set => currentBigSalonId = value; }
 
     [Header("UI References")]
     public TMP_Text statusText;
@@ -59,7 +64,7 @@ public class LobbySceneManager : MonoBehaviour
 
     private WebSocket ws;
 
-    private bool isAdmin;
+
 
     public TwilyButton startGameButton;  // Button to start the game (admin only)
 
@@ -67,13 +72,9 @@ public class LobbySceneManager : MonoBehaviour
 
     public BigSalonInfo actualBigSalon;
 
+    [SerializeField]
+    public GameObject creationTeamObject;
 
-    public static readonly string _salonCreation = "createSalon";
-    public static readonly string _salonDeletion = "deleteSalon";
-    public static readonly string _salonJoin = "joinSalon";
-    public static readonly string _salonLeave = "leaveSalon";
-
-    public static readonly string _answerSubmission = "submitAnswer";
 
 
     public bool IsPlayerInGame()
@@ -93,17 +94,23 @@ public class LobbySceneManager : MonoBehaviour
     private void Awake()
     {
         // Determine if current user is admin, mauybe check for multiple roles
-        string roles = Authentificator.Instance.Roles;//PlayerPrefs.GetString("user_roles", "");
-        isAdmin = roles.Contains("administrator", StringComparison.OrdinalIgnoreCase);
-        createButton.gameObject.SetActive(isAdmin);
 
-        if (startGameButton != null)
-            startGameButton.gameObject.SetActive(isAdmin);
+        creationTeamObject.gameObject.SetActive(IsAdmin());
 
-        string pseudo = Authentificator.Instance.Username;// PlayerPrefs.GetString("user_name", "");
-    
-        pseudoConnecte.text = pseudo;
-        roleConnecte.text = roles;
+          if (startGameButton != null)
+            startGameButton.gameObject.SetActive(IsPlayer());
+     
+        try
+        {
+            string pseudo = Authentificator.Instance.Username;// PlayerPrefs.GetString("user_name", "");
+            string roles = Authentificator.Instance.Roles;
+            pseudoConnecte.text = pseudo;
+            roleConnecte.text = roles;
+        }
+        catch
+        {
+            Debug.Log("eror auth");
+        }
 
 
 
@@ -178,35 +185,60 @@ public class LobbySceneManager : MonoBehaviour
         BigSalonLobby.Instance.SetupData(snapshot);
     }
 
-    public bool IsMyTurn(GameStateData stateData)
+ 
+    private bool CheckAreaOneDone()
     {
-        string myId = PlayerPrefs.GetInt("user_id", -1).ToString();
-        bool isObserver = PlayerPrefs.GetString("user_roles").Contains("observer");
-        return (myId == CurrentGameState.CurrentPlayerId.ToString() && !isObserver);
+        var areaone = CurrentGameState.AreaStates.Find(x => x.idArea == 1);
+        foreach (var c in areaone.casesOnBoard)
+        {
+            if(!c.isVisited)
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private bool CheckAreaToNotStarted()
+    {
+        
+            var areaone = CurrentGameState.AreaStates.Find(x => x.idArea == 2);
+            foreach (var c in areaone.casesOnBoard)
+            {
+                if (c.isVisited)
+                {
+                    return false;
+                }
+            }
+            return true;
+        
     }
 
 
-    private void HandleCardPicked(CardData cardPicked, GameStateData gameData, bool isMyTurn)
+    public void CheckChoseoseFirstTeam()
     {
-        if (!isMyTurn)
+        if(CheckAreaOneDone() && CheckAreaToNotStarted() && IsPlayerInGame() && CurrentGameState.Step == StepGameType.PLAYCARD)
         {
-            AnimationManager.Instance.MovePawnToTheCaseAsClient(cardPicked);
+            rollButton.gameObject.SetActive(false);
+            TeamChoiceObject.SetActive(true);
+             ProfileChoice.Instance.SetupProfileChoice();
+        }
+    }
+
+
+    public void StopSelectionProfile()
+    {
+        if(CurrentGameState.CurrentPlayerId == Authentificator.Instance.Id)
+        {
+            rollButton.gameObject.SetActive(true);
+
         }
 
+        TeamChoiceObject.SetActive(false);
 
-       BoardManager.Instance.SetUpActualCard(cardPicked, gameData, isMyTurn);
     }
 
-    private void InitializeGamePayload(GameRulesData rules, List<CardData> cards)
-    {
-        BoardManager.Instance.SetRules(rules);
-        BoardManager.Instance.SetCards(cards);
 
-
-        Debug.Log("Rules have been setup");
-    }
-
-    
     private void SetActionButtons(bool interact)
     {
         rollButton.gameObject.SetActive(interact);
@@ -236,13 +268,13 @@ public class LobbySceneManager : MonoBehaviour
             whiteList.Add(creator);
         }
         string id = Guid.NewGuid().ToString();
-        CreateTeam(currentBigSalonId, id, nameSalonEntry.text, whiteList);
+        CreateTeam(CurrentBigSalonId, id, nameSalonEntry.text, whiteList);
     }
    
 
     private async void OnDeleteSalon(string salonId)
     {
-        if (!isAdmin)
+        if (!IsAdmin())
         {
             statusText.text = "Not authorized to delete salons.";
             return;
@@ -298,7 +330,7 @@ public class LobbySceneManager : MonoBehaviour
   
 
     private string currentPlayerId = "";
-    private bool isMyTurn = false;
+ 
 
     public void StartGame()
     {
@@ -325,80 +357,6 @@ public class LobbySceneManager : MonoBehaviour
 
 
 
-    void HandleGameUpdate(GameStateData gameState)
-    {
-        CurrentGameState = gameState;
-
-
-        if (CurrentGameState == null)
-        {
-            Debug.LogError("Failed to parse GameStateData");
-            return;
-        }
-
-        currentPlayerId = CurrentGameState.CurrentPlayerId.ToString();
-
-        // UI updates
-        UpdateScoreboard(JToken.FromObject(CurrentGameState.Players)); // ou adapte UpdateScoreboard pour prendre List<PlayerData>!
-        UpdateTurnUI();
-
-        BoardManager.Instance.UpdateBoardCardsFromServer(gameState);
-
-        
-
-        if (CurrentGameState.Completed)
-        {
-            turnLabel.text = " Le jeu est terminé !";
-            SetActionButtons(false);
-            return;
-        }
-
-
-        InGameMenuManager.Instance.TextShared.text = CurrentGameState.SharedMessage;
-
-        UpdateAreaActive();
-        
-    }
-
-
-    private void UpdateAreaActive()
-    {
-        //check active area
-        //check if the cases  are validated
-        //if complete, go to the las one
-        //currentGameState.completed
-
-        var areaId = BoardManager.Instance.GetCurrentActiveArea();
-
-        var area = BoardManager.Instance.GetAreaById(areaId);
-
-        if (area == null)
-            return;
-        area.SetActive();
-        bool areaComplete = true;
-
-
- 
-
-        foreach(var caseBoard in area.CasesOnArea)
-        {
-            if (!caseBoard.Visited)
-            {
-                areaComplete = false ;
-            }
-        }
-
-        if (areaComplete)
-        {
-            //go to next area
-            area.Clear = true;
-
-
-        }
-
-    }
-
-
 
     void UpdateScoreboard(JToken players)
     {
@@ -410,6 +368,11 @@ public class LobbySceneManager : MonoBehaviour
             sb.AppendLine(name + ": " + score);
         }
         scoreboardText.text = sb.ToString();
+    }
+
+    public bool IsMyTurn()
+    {
+        return CurrentGameState.CurrentPlayerId == Authentificator.Instance.Id;
     }
 
     void UpdateTurnUI()
@@ -426,7 +389,7 @@ public class LobbySceneManager : MonoBehaviour
         }
 
         // Déterminer si c'est mon tour
-        isMyTurn = (myId == CurrentGameState.CurrentPlayerId.ToString() && !isObserver);
+        var isMyTurn = IsMyTurn();
 
         // Vérifie si l'on peut choisir une carte ou non
         bool canPick = isMyTurn;
@@ -468,11 +431,46 @@ public class LobbySceneManager : MonoBehaviour
 
     public void PickRandomCardInActiveArea()
     {
-        int activeArea = BoardManager.Instance.GetCurrentActiveArea();
+        var precedentArea = currentGameState.CurrentArea;
+        var game = CurrentGameState;
+        if (game == null || game.AreaStates == null) return;
+        if(game.CurrentArea <= 0)
+        {
+            game.CurrentArea = 1;
+        }
+        // Find the current area
+        var currentAreaObj = game.AreaStates.FirstOrDefault(a => a.idArea == game.CurrentArea);
+        if (currentAreaObj == null) return;
+
+        // Area is done if all its cases are visited
+        bool allVisited = currentAreaObj.casesOnBoard != null &&
+                          currentAreaObj.casesOnBoard.All(bc => bc.isVisited);
+
+        if (allVisited)
+        {
+            // Order areas by id (so next area is predictable)
+            var orderedAreas = game.AreaStates.OrderBy(a => a.idArea).ToList();
+            int idx = orderedAreas.FindIndex(a => a.idArea == game.CurrentArea);
+
+            if (idx >= 0 && idx + 1 < orderedAreas.Count)
+            {
+                game.CurrentArea = orderedAreas[idx + 1].idArea;
+                Debug.Log($"Area {currentAreaObj.idArea} complete! Now moving to area {game.CurrentArea}");
+            }
 
 
+           /* else
+            {
+            
+                game.Completed = true;
+                Debug.Log(" All areas complete  game finished!");
+            }*/
+        }
+        var activeArea = game.CurrentArea;
         if (!CanChangeArea(activeArea))
         {
+            //set message that area cant change
+            turnInfoLabel.text = "Besoin de validation par un intervenant";
             return;
         }
 
@@ -482,27 +480,26 @@ public class LobbySceneManager : MonoBehaviour
             Debug.Log("All areas are completed!");
             return;
         }
-
-        SetActionButtons(false);
-
+      
         PickRandomCardInArea(activeArea);
+     
+
+
     }
 
 
     public void PickRandomCardInArea(int areaId)
     {
-        if (!isMyTurn || string.IsNullOrEmpty(currentTeamId))
-            return;
-
+        SetActionButtons(false);
         // Get area board
 
         if (areaId == 0)
             areaId = 1;
         var area = BoardManager.Instance.GetAreaById(areaId);
-        var listCase = area.CasesOnArea;
+
 
         // Filter to unvisited cases
-        var unvisitedCases = listCase.Where(c => !c.Visited).ToList();
+        var unvisitedCases = AnimationManager.Instance.GetPossibleCases(areaId);
 
         if (unvisitedCases.Count == 0)
         {
@@ -514,35 +511,8 @@ public class LobbySceneManager : MonoBehaviour
         var randomCase = unvisitedCases[UnityEngine.Random.Range(0, unvisitedCases.Count)];
    
 
-        CardData card = null;
+        CardData card = randomCase.CaseData;
 
-        if (randomCase.TypeCase == TypeCard.QUESTION && randomCase.CaseData != null)
-        {
-            // Use the attached card
-            card = randomCase.CaseData;
-        }
-        else
-        {
-            // Need to pick a card manually
-            var desiredType = randomCase.TypeCase;
-
-            var possibleCards = BoardManager.Instance.Cards
-                .Where(cd => cd.TypeCard == desiredType && !cd.Unlocked)
-                .ToList();
-
-            if (possibleCards.Count == 0)
-            {
-                Debug.LogWarning($"[CARD PICK] No available {desiredType} cards in area {areaId}");
-                return;
-            }
-
-            // Pick one randomly
-            card = possibleCards[UnityEngine.Random.Range(0, possibleCards.Count)];
-            card.Unlocked = true;
-
-            // Optionally assign it to the case so we can access it later if needed
-            randomCase.CaseData = card;
-        }
 
         if (card != null)
         {
@@ -550,18 +520,15 @@ public class LobbySceneManager : MonoBehaviour
 
            
         }
+
+
+     
+
     }
 
     public void SendCardServerAfterSelection(CardData card)
     {
-        /*var packet = new JObject
-            {
-                ["type"] = "pickCard",
-                ["salonId"] = currentSalonId,
-                ["cardIndex"] = card.id
-        };
-
-        _ = ws.SendText(packet.ToString());*/
+        WsClient.Instance.ChoseCardOnGame(CurrentBigSalonId, CurrentTeamId, card.Id);
 
     }
 
@@ -569,43 +536,17 @@ public class LobbySceneManager : MonoBehaviour
 
 
 
-    public async void OnValidateAnswer(string answerInput, int id)
+    public async void OnValidateAnswer(CardData card)
     {
-        /*if (!isMyTurn || string.IsNullOrEmpty(currentSalonId)) return;
-
- // helper method to find the board index
-        string answer = answerInput.Trim();
-
-        var packet = new JObject
-        {
-            ["type"] = _answerSubmission,
-            ["salonId"] = currentSalonId,
-            ["index"] = id,
-            ["response"] = answer
-        };
-
-        await ws.SendText(packet.ToString());*/
-     //   validateButton.interactable = false; // Prevent double click
+        WsClient.Instance.AnswerCard(CurrentBigSalonId, CurrentTeamId, card);
     }
 
 
 
 
     public async void ChangeCardAdminState(int cardId, EvaluationResult newState)
-    {/*
-        if (string.IsNullOrEmpty(currentSalonId)) { Debug.LogWarning("No salon selected."); return; }
-        if (!IsAdmin()) { Debug.LogWarning("Only admins can change card state."); return; }
-
-        var packet = new JObject
-        {
-            ["type"] = "changeCardAdminState",
-            ["salonId"] = currentSalonId,
-            ["cardId"] = cardId,
-            ["proEvaluationResult"] = newState.ToString() // "NONE","WAITING","BAD","MID","GOOD"
-        };
-
-        await ws.SendText(packet.ToString());
-        Debug.Log($"[ADMIN] Requested proEvaluationResult change: card={cardId}, value={newState}");*/
+    {
+        WsClient.Instance.ValidateCardAdmin(currentBigSalonId, CurrentTeamId,  cardId, newState);
     }
 
 
@@ -617,26 +558,34 @@ public class LobbySceneManager : MonoBehaviour
             return true;
 
         var area = BoardManager.Instance.GetAreaById(actualArea);
-        bool canChangeArea = true;
+     
 
 
-        foreach(var cases in area.CasesOnArea)
+        foreach (var cases in area.CasesOnArea)
+        {
+            if (!cases.Visited)
+                return true;
+        }
+
+        foreach (var cases in area.CasesOnArea)
         {
             if(cases.TypeCase == TypeCard.QUESTION && cases.CaseData != null)
             {
-                if(cases.CaseData.NeedProEvaluation == true && cases.CaseData.ProEvaluationResult != EvaluationResult.GOOD)
+                if(cases.CaseData.NeedProEvaluation == true && cases.Visited && currentGameState.Board.FirstOrDefault(x => x.Id == cases.CaseData.Id).Unlocked && cases.CaseData.ProEvaluationResult == EvaluationResult.NONE)
                 {
                     statusText.text = "En attente de validation par un intervenant";
                     return false;
                 }
 
             }
+
+
         }
-        //check question on the cards, check if questions need to be valisated by an admin
+      
 
 
 
-        return canChangeArea;
+        return true;
     }
 
 
@@ -669,7 +618,7 @@ public class LobbySceneManager : MonoBehaviour
     {
         var pkt = new JObject { ["type"] = "leaveBigSalon", ["bigSalonId"] = bigSalonId };
         await ws.SendText(pkt.ToString());
-        if (currentBigSalonId == bigSalonId) currentBigSalonId = null;
+        if (CurrentBigSalonId == bigSalonId) CurrentBigSalonId = null;
     }
 
 
@@ -761,7 +710,7 @@ public class LobbySceneManager : MonoBehaviour
 
     public async void JoinSalon(string salonId)
     {
-        string bigSalonId = currentBigSalonId;
+        string bigSalonId = CurrentBigSalonId;
 
      
 
@@ -772,7 +721,7 @@ public class LobbySceneManager : MonoBehaviour
         }
 
         // remember where we are
-        currentBigSalonId = bigSalonId;
+        CurrentBigSalonId = bigSalonId;
         currentTeamId = salonId;
 
         var user = Authentificator.Instance.GetUser();
@@ -869,11 +818,11 @@ public class LobbySceneManager : MonoBehaviour
 
         var leaveSalon = new LeaveSalonRequest
         {
-            SalonId = currentBigSalonId,
+            SalonId = CurrentBigSalonId,
             UserInfo = Authentificator.Instance.GetUser()
         };
         WsClient.Instance.LeaveSalon(leaveSalon);
-        WsClient.Instance.LeaveTeamOnSalon(currentBigSalonId, Authentificator.Instance.GetUser(), IsPlayer(), CurrentTeamId);
+        WsClient.Instance.LeaveTeamOnSalon(CurrentBigSalonId, Authentificator.Instance.GetUser(), IsPlayer(), CurrentTeamId);
     }
 
     [SerializeField]
@@ -900,7 +849,7 @@ public class LobbySceneManager : MonoBehaviour
     {
         if (bigSalonId == null) return;
 
-        currentBigSalonId = bigSalonId;
+        CurrentBigSalonId = bigSalonId;
 
         foreach(var bs in actualBigSalonsInfo)
         {
@@ -953,15 +902,46 @@ public class LobbySceneManager : MonoBehaviour
     
     }
 
+    public GameStateData SyncDataFromServerMinimalist(GameStateData data)
+    {
+        currentGameState = data;
+        BoardManager.Instance.SyncCardFromServer(data);
+        return data;
+    }
+
     public GameStateData SyncDataFromServer(GameStateData data)
     {
         currentGameState = data;
         BoardManager.Instance.SyncCardFromServer(data);
-
+        BoardManager.Instance.SetupBoardFromServer(data);
+        if (data.CurrentPlayerId == Authentificator.Instance.Id)
+        {
+            turnLabel.text = "Tirez une carte";
+            rollButton.gameObject.SetActive(true);
+        }
+        else
+        {
+            var playerToPlay = data.Players.FirstOrDefault(x => x.userInfo.Id == data.CurrentPlayerId).userInfo.Name;
+            if(playerToPlay == null || playerToPlay == string.Empty)
+            {
+                playerToPlay = "Un autre joueur";
+            }
+            turnLabel.text = playerToPlay + " choisi une carte";
+            rollButton.gameObject.SetActive(false);
+        }
 
         return data;
 
     }
+
+    public void ShowCardPicked()
+    {
+        //get card current position
+        //show the data in the current position
+        //enable the response for the player chosen
+        BoardManager.Instance.ShowCardById(currentGameState.Board.FirstOrDefault(x => x.Id == currentGameState.CurrentPosition), IsMyTurn());
+    }
+
 
 
 

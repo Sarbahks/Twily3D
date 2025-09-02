@@ -29,6 +29,7 @@ public class InGameMenuManager : MonoBehaviour
     public MenuType ActualMenu { get => actualMenu; set => actualMenu = value; }
     public List<TabUIClickable> Tabs { get => tabs; set => tabs = value; }
     public TextMeshProUGUI TextShared { get => textShared; set => textShared = value; }
+    public DashBoardGame DashBoard { get => dashBoard; set => dashBoard = value; }
 
     [SerializeField]
     private CanvasGroup menuUI;
@@ -97,7 +98,7 @@ public class InGameMenuManager : MonoBehaviour
                 OpenCanvasGroup(playercardCG);
                 break;
             case MenuType.MENUCHARACTERS:
-                dashBoard.OpenDashBoard();
+                DashBoard.OpenDashBoard();
                 CloseCanvasGroup(playercardCG);
                 CloseCanvasGroup(admincardCG);
                 OpenCanvasGroup(charactersCG);
@@ -123,7 +124,7 @@ public class InGameMenuManager : MonoBehaviour
         {
             if(newCard.TypeCard == TypeCard.PROFILE)//profile page
             {
-                Debug.Log("card that are not questions");
+              //  Debug.Log("card that are not questions");
           
             }
             else

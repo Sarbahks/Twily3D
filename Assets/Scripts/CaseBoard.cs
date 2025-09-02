@@ -6,6 +6,9 @@ using static UnityEngine.Analytics.IAnalytic;
 public class CaseBoard : MonoBehaviour
 {
     [SerializeField]
+    private int idCard;
+
+    [SerializeField]
     private CardData cardData;
     [SerializeField]
     private TextMeshPro textCase;
@@ -127,7 +130,7 @@ public class CaseBoard : MonoBehaviour
 
     public void InitializeCase(TypeCard type, CardData value, int idArea)
     {
-
+        idCard = cardData.Id;
             areaCase = idArea;
             SetUpIconCase(type);
             if(value.Unlocked)

@@ -75,6 +75,7 @@ public class BigSalonInfo
     public List<string> WhiteList { get; set; }
     public List<SalonInfo> Salons { get; set; }
     public List<UserInfo> UserInBig { get; set; }   // who’s currently connected to THIS big salon
+    public List<NotificationTwily> Notifications { get; set; } = new List<NotificationTwily>();
 }
 
 [Serializable]
@@ -96,7 +97,12 @@ public class JoinSalonRequest
     public string SalonId { get; set; }
 
 }
-
+[Serializable]
+public class DeleteNotificationRequest
+{
+    public string IdSalon { get; set; }
+    public string IdNotification { get; set; }
+}
 
 [Serializable]
 public class JoinSalonResponse
@@ -333,7 +339,7 @@ public class GameStateData
 
     //new things to add
     public int TotalScore { get; set; }
-    public List<NotificationTwily> Notifications { get; set; }
+
     public DateTime StartGame { get; set; }
     public DateTime TimeLastTurn { get; set; }
     public DateTime EndedTime { get; set; }
@@ -342,6 +348,8 @@ public class GameStateData
     public SpecialCardBudgetResponse SpecialCardBudgetResponse { get; set; } = new SpecialCardBudgetResponse();
     public SpecialCardCrisisResponse SpecialCardCrisisResponse { get; set; } = new SpecialCardCrisisResponse();
 
+    public bool FirstCardsProfileChosen { get; set; } = false;
+    public bool SecondCardsProfileChosen { get; set; } = false;
 }
 
 [Serializable]
@@ -367,6 +375,7 @@ public class SpecialCardBudgetData
     public BudgetType Budget { get; set; }
     public int BudgetValue { get; set; }
 }
+[JsonConverter(typeof(JsonStringEnumConverter))]
 [Serializable]
 public enum BudgetType
 {
@@ -382,12 +391,16 @@ public enum BudgetType
 [Serializable]
 public class NotificationTwily
 {
-    public int idNotification;
-    public string notificationInfo;
-    public DateTime notificationTime;
-    public TypeNotification typeNotification;
-}
+    public string idNotification { get; set; }
+    public string notificationInfo { get; set; }
+    public DateTime notificationTime { get; set; }
+    public TypeNotification typeNotification { get; set; }
+    public string idSalonNotif { get; set; }
+    public string idTeamNotif { get; set; }
 
+    public int idUserNotif { get; set; }
+}
+[JsonConverter(typeof(JsonStringEnumConverter))]
 [SerializeField]
 public enum TypeNotification
 {
@@ -414,16 +427,13 @@ public class CaseStateData
 
 [Serializable]
 public class PlayerData
-{/* OLD
-    public int id;
-    public string name;
-    public int score;
-    public bool isObserver;*/
+{
 
-    public UserInfo userInfo;
-    public int score;
-    public RoleGameType roleGame;
-    public List<CardData> cardsProfile;
+    public UserInfo userInfo { get; set; }
+    public int score { get; set; }
+    public RoleGameType roleGame { get; set; }
+
+    public List<CardData> cardsProfile { get; set; } = new List<CardData>();
 
 
     public TypeManagementResponsableQualiteEtProcessus TypeManagementQual { get; set; } = TypeManagementResponsableQualiteEtProcessus.AUCUN;
@@ -431,7 +441,7 @@ public class PlayerData
     public TypeManagementResponsableRelationClientele TypeManagementClient { get; set; } = TypeManagementResponsableRelationClientele.AUCUN;
     public TypeManagementResponsableAnalystesDeDonnees TypeManagementData { get; set; } = TypeManagementResponsableAnalystesDeDonnees.AUCUN;
 }
-
+[JsonConverter(typeof(JsonStringEnumConverter))]
 [Serializable]
 public enum TypeManagementResponsableQualiteEtProcessus
 {
@@ -443,7 +453,7 @@ public enum TypeManagementResponsableQualiteEtProcessus
     TRANSFORMATIONNEL,
 }
 
-
+[JsonConverter(typeof(JsonStringEnumConverter))]
 [Serializable]
 public enum TypeManagementResponsableFormationEtSupportInterne
 {
@@ -455,7 +465,7 @@ public enum TypeManagementResponsableFormationEtSupportInterne
     PAROBJECTIFS
 }
 
-
+[JsonConverter(typeof(JsonStringEnumConverter))]
 [Serializable]
 public enum TypeManagementResponsableRelationClientele
 {
@@ -467,7 +477,7 @@ public enum TypeManagementResponsableRelationClientele
     DEPROXIMITE
 }
 
-
+[JsonConverter(typeof(JsonStringEnumConverter))]
 [Serializable]
 public enum TypeManagementResponsableAnalystesDeDonnees
 {
@@ -478,16 +488,18 @@ public enum TypeManagementResponsableAnalystesDeDonnees
     TRANSFORMATEUR,
     PARPROJET
 }
-
+[JsonConverter(typeof(JsonStringEnumConverter))]
 [Serializable]
 public enum RoleGameType
 {
+    NOROLE,
     RESPOQUAL,
     RESPOCLI,
     RESPODATA,
-    RESPOFORM,
-    NOROLE
+    RESPOFORM
+    
 }
+[JsonConverter(typeof(JsonStringEnumConverter))]
 [Serializable]
 public enum StepGameType
 {
@@ -495,7 +507,11 @@ public enum StepGameType
     STARTED,
     CHOSEROLE,
     ROLECHOSEN,
-    PLAYCARD
+    PLAYCARD,
+    SELECTTEAM,
+    NEXTPARTCARD,
+    NEXTSELECTTEAM,
+    FINALCARD
 
 }
 
@@ -534,7 +550,7 @@ public class ChatDTO
 
 
 }
-
+[JsonConverter(typeof(JsonStringEnumConverter))]
 [Serializable]
 public class ChatTarget
 {
@@ -542,6 +558,7 @@ public class ChatTarget
     public int IdTarget { get; set; }
     public string StringIdTarget { get; set; }
 }
+[JsonConverter(typeof(JsonStringEnumConverter))]
 [Serializable]
 public enum TypeChatTarget
 {
@@ -550,4 +567,118 @@ public enum TypeChatTarget
     ADMIN,
     OBSERVER,
     PLAYER
+}
+
+
+[Serializable]
+public class ChoseCardRequest
+{
+    public string IdSalon { get; set; }
+    public string IdTeam { get; set; }
+    public int IdCard { get; set; }
+}
+
+[Serializable]
+public class ChoseCardResponse
+{
+    public string IdSalon { get; set; }
+    public string IdTeam { get; set; }
+    public int IdCard { get; set; }
+    public GameStateData Game { get; set; }
+}
+
+[Serializable]
+public class SendNotificationRequest
+{
+    public string IdSalon { get; set; }
+    public NotificationTwily Notification { get; set; }
+}
+
+[Serializable]
+public class AnswerCardRequest
+{
+    public string IdSalon { get; set; }
+    public string IdTeam { get; set; }
+    public CardData CardAnsewerd { get; set; }
+    public int IdPlayerAnswered { get; set; }
+}
+
+
+
+[Serializable]
+public class AnswerCardResponse
+{
+    public string IdSalon { get; set; }
+    public string IdTeam { get; set; }
+    public GameStateData Game { get; set; }
+
+}
+
+
+[Serializable]
+public class ChoseProfileRequest
+{
+    public string IdSalon { get; set; }
+    public string IdTeam { get; set; }
+
+    public List<CardData> CardsChosen { get; set; } = new List<CardData>();
+
+    public UserInfo UserInfo { get; set; }
+}
+
+[Serializable]
+public class ChoseProfileResponse
+{
+    public string IdSalon { get; set; }
+    public string IdTeam { get; set; }
+    public GameStateData Game { get; set; }
+}
+
+public class ValidateCardAdminRequest
+{
+    public string IdSalon { get; set; }
+    public string IdTeam { get; set; }
+    public int CardId { get; set; }
+    public EvaluationResult NewState { get; set; }
+}
+
+[Serializable]
+public class ValidateCardAdminResponse
+{
+    public string IdSalon { get; set; }
+    public string IdTeam { get; set; }
+    public GameStateData Game { get; set; }
+}
+
+// DTOs shared with server
+public class SubmitBudgetRequest
+{
+    public string IdSalon { get; set; }
+    public string IdTeam { get; set; }
+    public SpecialCardBudgetResponse Budget { get; set; }
+    public int UserId { get; set; } // optional
+}
+
+public class SubmitCrisisRequest
+{
+    public string IdSalon { get; set; }
+    public string IdTeam { get; set; }
+    public SpecialCardCrisisResponse Crisis { get; set; }
+    public int UserId { get; set; } // optional
+}
+
+[Serializable]
+public class BudgetSubmittedResponse
+{
+    public string IdSalon { get; set; }
+    public string IdTeam { get; set; }
+    public GameStateData Game { get; set; }
+}
+
+[Serializable]
+public class CrisisSubmittedResponse
+{
+    public string IdSalon { get; set; }
+    public string IdTeam { get; set; }
+    public GameStateData Game { get; set; }
 }

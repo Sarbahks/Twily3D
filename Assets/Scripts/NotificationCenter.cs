@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 public class NotificationCenter : MonoBehaviour
@@ -22,6 +23,8 @@ public class NotificationCenter : MonoBehaviour
         [SerializeField]
     private GameObject notificationButton;
 
+    [SerializeField]
+    private GameObject haveNotification;
     [SerializeField]
     private Transform notifArea;
 
@@ -64,25 +67,48 @@ public class NotificationCenter : MonoBehaviour
 
     private void SetupNotification(BigSalonInfo info)
     {
+        if (info == null || info.Salons == null)
+            return;
+
         Helpers.Instance.ClearContainer(notifArea);
 
-
-        foreach (var salon in info.Salons)
+        try
         {
-            if (salon.GameState == null || salon.GameState.Notifications == null)
-                continue;
-
-            foreach (var notif in salon.GameState.Notifications)
+            if(info.Notifications == null || info.Notifications.Count <=0)
             {
-                var go = Instantiate(notifPrefab, notifArea);
-                var notifScript = go.GetComponent<NotificationItem>();
-                notifScript.SetupNotifItem(salon.Id, salon.Name, notif);
+                haveNotification.SetActive(false);
             }
+            else
+            {
+                haveNotification.SetActive(true);
+            }
+
+
+            foreach (var notif in info.Notifications)
+            {
+                if (notif == null)
+                    continue;
+
+                    var go = Instantiate(notifPrefab, notifArea);
+                    var notifScript = go.GetComponent<NotificationItem>();
+                    notifScript.SetupNotifItem(notif.idTeamNotif, notif.idSalonNotif, notif);
+
+
+               
+            }
+
+
+
         }
+        catch(Exception e) { Debug.LogException(e); };
+
     }
 
     private void SetupGames(BigSalonInfo info)
     {
+        if (info == null || info.Salons == null)
+            return;
+
         Helpers.Instance.ClearContainer(resumeArea);
         foreach (var salon in info.Salons)
         {
@@ -100,6 +126,7 @@ public class NotificationCenter : MonoBehaviour
 
     public void OpenNotifCenter()
     {
+        WsClient.Instance.GetLobby(LobbySceneManager.Instance.CurrentBigSalonId);
         adminPannel.SetActive(true);
     }
 

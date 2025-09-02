@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text.Json.Serialization;
 using UnityEngine.Analytics;
 using UnityEditor.Experimental.GraphView;
+using static UnityEngine.Analytics.IAnalytic;
 
 public class BoardManager : MonoBehaviour
 {
@@ -105,8 +106,7 @@ public class BoardManager : MonoBehaviour
     public List<AreaBoard> areaBoards;
     public GameObject casePrefab;
 
-    [SerializeField]
-    private List<CaseBoard> casesOnBoard;
+   
 
 
 
@@ -194,7 +194,7 @@ public class BoardManager : MonoBehaviour
     private List<AreaStateData> areasStateData;
     public void SetupAreaData()
     {
-        int areaIds = 4;
+        int areaIds = 5;
         AreasStateData = new List<AreaStateData>();
         for (int i = 1; i<= areaIds; i++)
         {
@@ -217,6 +217,40 @@ public class BoardManager : MonoBehaviour
         }
 
  
+    }
+
+    public void SetupBoardFromServer(GameStateData gameState)
+    {
+        if (gameState?.AreaStates == null) return;
+
+       foreach(var c in gameState.Board)
+        {
+            if(c.Unlocked)
+            {
+                GetCaseBoardFromData(c).Unlock();
+                Debug.Log("Unloc the case " + c.Id);
+            }
+        }
+
+  //add animation area
+    }
+
+
+
+    public CaseBoard GetBoardCaseByCardId(int cardId)
+    {
+        foreach (var area in areaBoards)
+        {
+            foreach (var bc in area.CasesOnArea)
+            {
+                if (bc.CaseData.Id == cardId)
+                {
+                    return bc;
+                }
+            }
+        }
+
+        return null;
     }
 
     private void ClearPreviousCases(AreaBoard areaBoard)
@@ -251,7 +285,7 @@ private void PlaceCardOnBoard(AreaBoard areaBoard, CardData card, TypeCard typeC
 
         script.InitializeCase(typeCard, card, areaBoard.IdArea);
 
-        casesOnBoard.Add(script);
+      //  casesOnBoard.Add(script);
         areaBoard.CasesOnArea.Add(script);
     }
 }
@@ -353,25 +387,7 @@ private void PlaceCardOnBoard(AreaBoard areaBoard, CardData card, TypeCard typeC
         return areaBoards.FirstOrDefault(x => x.IdArea == idArea);
     }
 
-    public List<CaseBoard> GetCardsAvaiableByArea(int area)
-    {
-        var areas = GetAreaById(area);
-
-        var caseboard = casesOnBoard.FindAll(x => x.CaseData.IdArea == areas.IdArea);
-
-        List<CaseBoard> caseDatas = new List<CaseBoard>();
-
-        foreach (var card in caseboard)
-        {
-            if (card.CaseData.Unlocked)
-            {
-                caseDatas.Add(card);
-            }
-        }
-
-
-        return caseDatas;
-    }
+  
 
 
     public bool IsAreaCompleted(int areaId)
@@ -383,8 +399,13 @@ private void PlaceCardOnBoard(AreaBoard areaBoard, CardData card, TypeCard typeC
 
     public CaseBoard GetCaseBoardFromData(CardData selected)
     {
-        return casesOnBoard.FirstOrDefault(x => x.CaseData.Id == selected.Id);
+        if (selected == null) return null;
+
+        return areaBoards
+            .SelectMany(a => a.CasesOnArea)         // flatten all cases
+            .FirstOrDefault(cb => cb.CaseData.Id == selected.Id);
     }
+
 
     public void SetRules(GameRulesData rules)
     {

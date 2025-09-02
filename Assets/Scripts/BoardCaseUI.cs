@@ -41,6 +41,8 @@ public class BoardCaseUI : MonoBehaviour
     
     [SerializeField]
     private GameObject bgType4;
+        [SerializeField]
+    private GameObject bgType5;
 
         [SerializeField]
     private GameObject bgBonus;
@@ -266,6 +268,7 @@ public class BoardCaseUI : MonoBehaviour
                     case 2: bgType2.SetActive(true); break;
                     case 3: bgType3.SetActive(true); break;
                     case 4: bgType4.SetActive(true); break;
+                    case 5: bgType5.SetActive(true); break;
                     default:
                         Debug.LogWarning($"Unknown idArea: {cd.IdArea}");
                         break;
@@ -316,20 +319,13 @@ public class BoardCaseUI : MonoBehaviour
 
 
 
-    public void VerificationAuto()
-    {
-        Debug.Log("AskAiVerification");
-    }
+
 
     public void ValidationAdmin()
     {
         LobbySceneManager.Instance.ChangeCardAdminState(BoardCard.Id, EvaluationResult.GOOD);
     }
 
-    public void RejetAdmin()
-    {
-        LobbySceneManager.Instance.ChangeCardAdminState(BoardCard.Id, EvaluationResult.BAD);
-    }
 
 
 }

@@ -95,6 +95,10 @@ public class GameScript : MonoBehaviour
     public void ProfileAllChosen()
     {
         choiceProfileManager.SetActive(false);
+        Debug.Log("profile chosen"); 
+
+        //set up the chose card ai depending on the player
+        
     }
 
     public void OpenInfosLensUI()
@@ -107,8 +111,23 @@ public class GameScript : MonoBehaviour
         infoUI.gameObject.SetActive(false);
     }
 
+    public void SetProfileChoice(GameStateData payload)
+    {
+        foreach(var player in payload.Players)
+        {
+            if(player.userInfo != null)
+            {
+                foreach (var choice in managerProfile)
+                {
+                    if(choice.Role == player.roleGame)
+                    {
+                        choice.AssignUserToManager(player.userInfo);
+                    }
+                }
+            }
+        }
 
-
+    }
 }
 
 

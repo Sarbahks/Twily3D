@@ -1,19 +1,20 @@
 using NUnit.Framework;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
-public class SpecialCardManager : MonoBehaviour
+public class SpecialInGameManager : MonoBehaviour
 {
-    private static SpecialCardManager instance;
+    private static SpecialInGameManager instance;
 
-    public static SpecialCardManager Instance
+    public static SpecialInGameManager Instance
     {
         get
         {
             if (instance == null)
             {
-                instance = FindAnyObjectByType<SpecialCardManager>();
+                instance = FindAnyObjectByType<SpecialInGameManager>();
             }
             return instance;
         }
@@ -31,11 +32,29 @@ public class SpecialCardManager : MonoBehaviour
 
     public Sprite GetImageFromId(int id)
     {
-        return ImageDatas.FirstOrDefault( x=> x.ImageId == id).SpriteImage;
+        var img = ImageDatas.FirstOrDefault(x => x.ImageId == id);
+           if (img != null)
+        {
+            return img.SpriteImage;
+        }
+        return null;
+
     }
 
+    public void OpenCardLinkedDoc(int attachedDocupentId)
+    {
+        var docCorresponding = CardDocuments.FirstOrDefault(x => x.CardDocId == attachedDocupentId);
+
+        if (docCorresponding != null)
+        {
+            
+                docCorresponding.Document.SetActive(true);
+            
+        }
+    }
 }
 
+[Serializable]
 [SerializeField]
 public class CardDocument
 {
@@ -48,6 +67,7 @@ public class CardDocument
     public GameObject Document { get => document; set => document = value; }
 }
 
+[Serializable]
 [SerializeField]
 public class ImageData
 {
@@ -63,5 +83,5 @@ public class ImageData
 /*
  Documentation on effect card
 1 = no writing directly on the card
-
+2  =write on the dashboard
  */
