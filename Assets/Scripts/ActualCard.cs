@@ -22,8 +22,6 @@ public class ActualCard : MonoBehaviour
 
 
 
-    [SerializeField]
-    private TMP_InputField responseInput;
 
 
 
@@ -37,7 +35,9 @@ public class ActualCard : MonoBehaviour
     private GameObject bgType3;
 
     [SerializeField]
-    private GameObject bgType4;
+    private GameObject bgType4;    
+    [SerializeField]
+    private GameObject bgType5;
 
     [SerializeField]
     private GameObject bgBonus;
@@ -52,78 +52,49 @@ public class ActualCard : MonoBehaviour
     private GameObject bgProfileManagement;
 
 
-    [SerializeField]
-    private TextMeshProUGUI specialTitle;
+
 
     [SerializeField]
-    private TextMeshProUGUI specialQuestion;
-    [SerializeField]
-    private TextMeshProUGUI specialConsigne;
+    private TextMeshProUGUI respondButtonText;
 
 
 
     [SerializeField]
-    private TextMeshProUGUI profileTitle;
-    [SerializeField]
-    private TextMeshProUGUI profileDescription;
-    [SerializeField]
-    private TextMeshProUGUI profileDiploma;
-    [SerializeField]
-    private TextMeshProUGUI profileRole;
-    [SerializeField]
-    private TextMeshProUGUI profileExp;
-    [SerializeField]
-    private TextMeshProUGUI profileStrongPoint;
-    [SerializeField]
-    private TextMeshProUGUI profileWeakPoint;
-
-    [SerializeField]
-    private GameObject questionObject;
-
-    [SerializeField]
-    private GameObject specialObject;
-
-    [SerializeField]
-    private GameObject profileObject;
-
-
-
-    [SerializeField]
-    private TwilyButton validationButton;
+    private TwilyButton respondButton;
 
     public CardData BoardCase { get => boardCase; set => boardCase = value; }
     public int Id { get => id; set => id = value; }
     public TextMeshProUGUI Title { get => title; set => title = value; }
-    public TMP_InputField ResponseInput { get => responseInput; set => responseInput = value; }
 
 
 
-    public void SendResponse()
-    {
-        boardCase.Response = responseInput.text;
-        LobbySceneManager.Instance.OnValidateAnswer(boardCase);
-        validationButton.gameObject.SetActive(false);
-    }
+
 
     //TODO change it so it matche the new card
     public void Initialize(CardData card, bool isplayerTurn)
     {
         boardCase = card;
-        if(card.AttachedDocupentId > 0)
-        {
-            linkedButton.gameObject.SetActive(true);
-        }
-        else
-        {
-            linkedButton.gameObject.SetActive(true);
-        }
+   
+         
+
         id = card.Id;
         SetupCardBG(card);
 
-        validationButton.gameObject.SetActive(isplayerTurn);
+
+        if(isplayerTurn)
+        {
+            respondButtonText.text = "Répondre";
+        }
+        else
+        {
+            respondButtonText.text = "Voir la carte";
+        }
+        respondButton.gameObject.SetActive(true);
+
+        InGameMenuManager.Instance.HighlightCard(card);
     }
 
-    
+
 
 
 
@@ -135,7 +106,7 @@ public class ActualCard : MonoBehaviour
         switch (cd.TypeCard)
         {
             case TypeCard.QUESTION:
-                questionObject.SetActive(true);
+
 
                 switch (cd.IdArea)
                 {
@@ -143,47 +114,41 @@ public class ActualCard : MonoBehaviour
                     case 2: bgType2.SetActive(true); break;
                     case 3: bgType3.SetActive(true); break;
                     case 4: bgType4.SetActive(true); break;
+                    case 5: bgType5.SetActive(true); break;
                     default:
                         Debug.LogWarning($"Unknown idArea: {cd.IdArea}");
                         break;
                 }
-                title.text = cd.Title;
-                question.text = cd.Question;
-                consigne.text = cd.Instruction;
+
 
                 break;
 
             case TypeCard.BONUS:
+                bgBonus.SetActive(true);
+                break;
             case TypeCard.DEFI:
+                bgBonus.SetActive(true);
+                break;
             case TypeCard.KPI:
+                bgKpi.SetActive(true);
+                break;
             case TypeCard.PROFILMANAGEMENT:
-                specialObject.SetActive(true);
-
-                specialTitle.text = cd.Title;
-                specialQuestion.text = cd.Question;
-                specialConsigne.text = cd.Instruction;
+                bgProfileManagement.SetActive(true);
                 break;
 
-            case TypeCard.PROFILE:
-                profileObject.SetActive(true);
 
-                profileTitle.text = cd.Title;
-                profileDescription.text = cd.Description;
-                profileDiploma.text = cd.Degree;
-                profileRole.text = cd.Role;
-                profileExp.text = cd.Experience;
-                profileStrongPoint.text = cd.StrongPoints;
-                profileWeakPoint.text = cd.WeakPoints;
-                break;
         }
+
+        title.text = cd.Title;
+        question.text = cd.Question;
+        consigne.text = cd.Instruction;
+  
     }
 
 
     private void DesactivateAllBGS()
     {
-        questionObject.SetActive(false);
-        specialObject.SetActive(false);
-        profileObject.SetActive(false);
+
 
 
         // Deactivate all backgrounds
@@ -191,16 +156,17 @@ public class ActualCard : MonoBehaviour
         bgType2.SetActive(false);
         bgType3.SetActive(false);
         bgType4.SetActive(false);
-
+        bgBonus.SetActive(false);
+        bgDefi.SetActive(false);
+        bgKpi.SetActive(false);
+        bgProfileManagement.SetActive(false);
 
     }
-    [SerializeField]
-    private GameObject linkedButton;
 
-    public void OpenLinkedDoc()
+    public void GoToCanvas()
     {
-        SpecialInGameManager.Instance.OpenCardLinkedDoc(boardCase.AttachedDocupentId);  
-            }
-
+        InGameMenuManager.Instance.ShowMenu();
+        InGameMenuManager.Instance.OpenPageMenu(MenuType.MENUCARDSPLAYER);
+    }
 
 }

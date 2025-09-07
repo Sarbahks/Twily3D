@@ -22,7 +22,7 @@ public class MenuCardArea : MonoBehaviour
     /// Instantiates a card into the last row, creating a new row if needed.
     /// Returns the instantiated card GameObject.
     /// </summary>
-    public GameObject AddCardToArea(GameObject cardPrefab)
+    public GameObject AddCardToArea(GameObject cardPrefab)//those card have a BoardCaseUI, i want to get it;
     {
         if (cardPrefab == null)
         {
@@ -120,6 +120,45 @@ public class MenuCardArea : MonoBehaviour
             }
             rcs.gameObject.SetActive(false);
         }
+    }
+
+    public List<BoardCaseUI> GetAllCardsInArea()
+    {
+        var result = new List<BoardCaseUI>();
+        if (rowStates == null || rowStates.Count == 0) return result;
+
+        var seen = new HashSet<BoardCaseUI>();
+
+        foreach (var row in rowStates)
+        {
+            if (row == null) continue;
+
+            // Prefer the explicit list of instantiated cards
+            if (row.CardInstancied != null && row.CardInstancied.Count > 0)
+            {
+                foreach (var go in row.CardInstancied)
+                {
+                    if (go == null) continue;
+                    var ui = go.GetComponent<BoardCaseUI>();
+                    if (ui != null && seen.Add(ui))
+                        result.Add(ui);
+                    else if (ui == null)
+                        Debug.LogWarning("[MenuCardArea] A card without BoardCaseUI was found in CardInstancied.");
+                }
+            }
+            else
+            {
+                // Fallback: scan children (includeInactive: true to catch hidden rows/cards)
+                var uis = row.GetComponentsInChildren<BoardCaseUI>(true);
+                foreach (var ui in uis)
+                {
+                    if (ui != null && seen.Add(ui))
+                        result.Add(ui);
+                }
+            }
+        }
+
+        return result;
     }
 
 }

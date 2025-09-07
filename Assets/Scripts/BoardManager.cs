@@ -1,12 +1,8 @@
 using System.Collections.Generic;
 using System;
 using UnityEngine;
-using Newtonsoft.Json.Linq;
+
 using System.Linq;
-using System.Text.Json.Serialization;
-using UnityEngine.Analytics;
-using UnityEditor.Experimental.GraphView;
-using static UnityEngine.Analytics.IAnalytic;
 
 public class BoardManager : MonoBehaviour
 {
@@ -34,6 +30,7 @@ public class BoardManager : MonoBehaviour
     public List<CardData> Cards { get => cards; set => cards = value; }
     public List<AreaStateData> AreasStateData { get => areasStateData; set => areasStateData = value; }
     public bool IsInitialized { get => isInitialized; set => isInitialized = value; }
+    public ActualCard CardInGame { get => cardInGame; set => cardInGame = value; }
 
     private bool isInitialized = false;
 
@@ -60,7 +57,7 @@ public class BoardManager : MonoBehaviour
     {
         cardCanvas.alpha = 1;
         cardCanvas.interactable = isPlayerTurn;
-        cardInGame.Initialize(card ,isPlayerTurn);
+        CardInGame.Initialize(card ,isPlayerTurn);
     }
 
 

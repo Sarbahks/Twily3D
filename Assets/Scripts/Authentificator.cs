@@ -1,6 +1,7 @@
 using System;
 using UnityEngine;
 using UnityEngine.Purchasing;
+using UnityEngine.SceneManagement;
 
 public class Authentificator : MonoBehaviour
 {
@@ -55,16 +56,41 @@ public class Authentificator : MonoBehaviour
         switch (idAuth)
         {
             case 1:
-                authManager.OnLoginDebug("d.gely@wanadoo.fr", "admin");
+               // authManager.OnLoginDebug("d.gely@wanadoo.fr", "admin");
+
+                Authentificator.Instance.Username = "David";
+                Authentificator.Instance.Id = 0;
+                Authentificator.Instance.Roles = "administrator, player";
+          
+                Debug.Log("Loading LobbyScene...");
+                SceneManager.LoadScene("LobbyScene");
+
                 break;
             case 2:
-                authManager.OnLoginDebug("nora@gmail.com", "123456");
+                //authManager.OnLoginDebug("nora@gmail.com", "123456");
+
+                Authentificator.Instance.Username = "Nora";
+                Authentificator.Instance.Id = 1;
+                Authentificator.Instance.Roles = "administrator, player";
+                Debug.Log("Loading LobbyScene...");
+                SceneManager.LoadScene("LobbyScene");
+
                 break;
             case 3:
-                authManager.OnLoginDebug("nath@gmail.com", "123456");
+              //  authManager.OnLoginDebug("nath@gmail.com", "123456");
+                Authentificator.Instance.Username = "Nath";
+                Authentificator.Instance.Id = 2;
+                Authentificator.Instance.Roles = "administrator, player";
+                Debug.Log("Loading LobbyScene...");
+                SceneManager.LoadScene("LobbyScene");
                 break;
             case 4:
-                authManager.OnLoginDebug("steph@gmail.com", "123456");
+                //  authManager.OnLoginDebug("steph@gmail.com", "123456");
+                Authentificator.Instance.Username = "Steph";
+                Authentificator.Instance.Id = 3;
+                Authentificator.Instance.Roles = "administrator, player";
+                Debug.Log("Loading LobbyScene...");
+                SceneManager.LoadScene("LobbyScene");
                 break;
 
 

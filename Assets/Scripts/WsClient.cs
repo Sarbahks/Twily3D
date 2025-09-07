@@ -2,10 +2,12 @@ using NativeWebSocket;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using UnityEngine;
+using UnityEngine.Events;
 
 public class WsClient : MonoBehaviour
 {
@@ -31,22 +33,22 @@ public class WsClient : MonoBehaviour
 
 
 
+    public string GAME_URL;
 
-    private void Awake()
-    {
-        DontDestroyOnLoad(this);
-    }
 
     private WebSocket ws;
 
     private async void Start()
     {
+        ConfigLoader.Instance.Load(); // sync
+        GAME_URL = ConfigLoader.Instance.GameUrl;
         // In Editor/local HTTP: ws://
         // In WebGL over HTTPS: use wss://your-host/ws
 #if UNITY_WEBGL && !UNITY_EDITOR
         string url = "wss://localhost:7239/ws"; // if your page is served over https
 #else
-        string url = "ws://localhost:5124/ws";
+
+        string url = "ws://localhost:32770/ws";
 #endif
         ws = new WebSocket(url);
 
@@ -91,6 +93,10 @@ public class WsClient : MonoBehaviour
 
                     LobbySceneManager.Instance.RenderBigSalonList(salons);
                     Debug.Log("Recieve data big salons");
+                }
+                if(type == "bigSalonClosed")
+                {
+                    GetSalons();
                 }
                 if (type == "salonJoined")
                 {
@@ -153,7 +159,15 @@ public class WsClient : MonoBehaviour
                         Debug.LogWarning($"Join team failed for {teamId} in salon {salonId}");
                     }
                 }
-
+                if(type == "teamClosed")
+                {
+                    string bigSalonid = LobbySceneManager.Instance.CurrentBigSalonId;
+                    if(bigSalonid != null && bigSalonid != string.Empty)
+                    {
+                        GetLobby(bigSalonid);
+                    }
+              
+                }
                 if (type == "teamLeaved")
                 {
                     bool leaved = (bool)(jobj["data"]?["leaved"] ?? false);
@@ -227,6 +241,7 @@ public class WsClient : MonoBehaviour
                 }
                 if (type == "cardChosen")
                 {
+                    LobbySceneManager.Instance.CanRespondCard = true;
                     var payload = jobj["data"]?.ToObject<ChoseCardResponse>();
                     if (payload == null)
                     {
@@ -267,9 +282,12 @@ public class WsClient : MonoBehaviour
                         Debug.LogWarning("cardAnswered missing payload.Game");
                         return;
                     }
+                    LobbySceneManager.Instance.CanRespondCard = false;
 
                     // Apply authoritative GameState
                     LobbySceneManager.Instance.SyncDataFromServer(payload.Game);
+
+                    BoardManager.Instance.HideCard();
                   //  BoardManager.Instance.InitializeGameFromData(payload.Game);
                     //GameScript.Instance.SetCurrentGameState(payload.Game);
 
@@ -301,6 +319,31 @@ public class WsClient : MonoBehaviour
 
                     //check if i need too select a team, if im a player i need to chose my team depending of the manager
                     LobbySceneManager.Instance.CheckChoseoseFirstTeam();
+
+                    ResettableTimer.Touch(
+                        $"pro-eval:{payload.Game.SharedMessage}",   // make the key unique to this board/game
+                        1800f,                           // 30 minutes
+                        () =>
+                        {
+                            if (payload?.Game?.Board == null) return;
+
+                            int changed = 0;
+                            foreach (var card in payload.Game.Board)
+                            {
+                                if (card != null
+                                    && card.Unlocked
+                                    && card.NeedProEvaluation
+                                    && card.ProEvaluationResult == EvaluationResult.NONE)
+                                {
+                                    card.ProEvaluationResult = EvaluationResult.GOOD;
+                                    changed++;
+                                }
+                            }
+
+                            Debug.Log($"30 min inactive -> auto pro-validated {changed} card(s).");
+                        }
+                    );
+
                 }
                 if (type == "playerProfileCardsChosen")
                 {
@@ -357,6 +400,21 @@ public class WsClient : MonoBehaviour
                     InGameMenuManager.Instance.DashBoard.SyncDashboardData();
                 }
 
+                if (type == "chatMessage")
+                {
+                    var dto = jobj["data"]?.ToObject<ChatDTO>();
+                    if (dto == null) return;
+                 //   ChatUI.Instance?.OnMessage(dto);
+
+                    ChatPanel.Instance.AddMessageToChat(dto);
+                }
+                if (type == "sharedText")
+                {
+                    var st = jobj["data"]?.ToObject<SharedMessageResponse>();
+                    if (st == null) return;
+
+                    InGameMenuManager.Instance.TextShared.text = st.TextShared;
+                }
 
                 else if (type == "error")
                 {
@@ -486,6 +544,20 @@ public class WsClient : MonoBehaviour
         _ = ws.SendText(json);
     }
 
+    public void DeleteBigSalon(string idBigSalon)
+    {
+        var envelope = new Envelope<string> { type = "leaveGame", data = idBigSalon };
+        var json = JsonConvert.SerializeObject(envelope);
+        _ = ws.SendText(json);
+    }
+
+
+    public void DeleteTeam(DeleteTeamRequest request)
+    {
+        var envelope = new Envelope<DeleteTeamRequest> { type = "leaveGame", data = request };
+        var json = JsonConvert.SerializeObject(envelope);
+        _ = ws.SendText(json);
+    }
 
     public void SelectRole(string idBigSalon, string idTeam, RoleGameType roleGameType)
     {
@@ -559,36 +631,7 @@ public class WsClient : MonoBehaviour
         _ = ws.SendText(json);
     }
 
-    private void OnDestroy()
-    {
-        LobbySceneManager.Instance.QuitGame();
-    }
-
-    private async void OnApplicationQuit()
-    {
-        try
-        {
-            // Tell server you are leaving the salon first
-            if (LobbySceneManager.Instance != null)
-            {
-                LobbySceneManager.Instance.QuitGame(); // this should send leaveSalonRequest
-            }
-
-            // Give it a tiny frame to flush (NativeWebSocket queues sends)
-            await System.Threading.Tasks.Task.Delay(100);
-
-            // Close socket cleanly
-            if (ws != null && ws.State == WebSocketState.Open)
-            {
-                await ws.Close();
-            }
-        }
-        catch (Exception ex)
-        {
-            Debug.LogWarning("OnApplicationQuit cleanup error: " + ex);
-        }
-    }
-
+    
 
     public void ValidateCardAdmin(string currentBigSalonId, string currentTeamId, int cardId, EvaluationResult newState)
     {
@@ -636,5 +679,105 @@ public class WsClient : MonoBehaviour
         _ = ws.SendText(JsonConvert.SerializeObject(env));
     }
 
+    public void SendChatMessage(ChatDTO chatDTO)
+    {
+        if (chatDTO == null) return;
 
+        if (chatDTO.Ts == 0)
+            chatDTO.Ts = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+
+        var env = new Envelope<ChatDTO> { type = "chatMessage", data = chatDTO };
+        var json = JsonConvert.SerializeObject(env);
+        _ = ws.SendText(json);
+    }
+
+    public void SendMessageSharedLobby(string textShared)
+    {
+        SharedMessageRequest sharedReq = new SharedMessageRequest
+        {
+            IdSalon = LobbySceneManager.Instance.CurrentBigSalonId,
+            IdTeam = LobbySceneManager.Instance.CurrentTeamId,
+            TextShared = textShared
+        };
+
+        var env = new Envelope<SharedMessageRequest> { type = "shareMessage", data = sharedReq };
+        var json = JsonConvert.SerializeObject(env);
+        _ = ws.SendText(json);
+    }
+
+    #region OnExitApp
+    private void OnDestroy()
+    {
+        LobbySceneManager.Instance.QuitGame();
+    }
+
+    private async void OnApplicationQuit()
+    {
+        try
+        {
+            // Tell server you are leaving the salon first
+            if (LobbySceneManager.Instance != null)
+            {
+                LobbySceneManager.Instance.QuitGame(); // this should send leaveSalonRequest
+            }
+
+            // Give it a tiny frame to flush (NativeWebSocket queues sends)
+            await System.Threading.Tasks.Task.Delay(100);
+
+            // Close socket cleanly
+            if (ws != null && ws.State == WebSocketState.Open)
+            {
+                await ws.Close();
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.LogWarning("OnApplicationQuit cleanup error: " + ex);
+        }
+    }
+
+    #endregion
+}
+
+public static class ResettableTimer
+{
+    private class Runner : MonoBehaviour { }
+    private static Runner _runner;
+    private static readonly Dictionary<string, Coroutine> _running = new Dictionary<string, Coroutine>();
+
+    private static void EnsureRunner()
+    {
+        if (_runner != null) return;
+        var go = new GameObject("ResettableTimer_Runner");
+        UnityEngine.Object.DontDestroyOnLoad(go);
+        _runner = go.AddComponent<Runner>();
+    }
+
+    // Start or reset a timer identified by `key`. After `seconds` without another Touch, onTimeout runs.
+    public static void Touch(string key, float seconds, Action onTimeout)
+    {
+        EnsureRunner();
+
+        if (_running.TryGetValue(key, out var c) && c != null)
+            _runner.StopCoroutine(c);
+
+        _running[key] = _runner.StartCoroutine(Countdown(key, seconds, onTimeout));
+    }
+
+    // Optional: cancel a timer explicitly
+    public static void Cancel(string key)
+    {
+        if (_runner == null) return;
+        if (_running.TryGetValue(key, out var c) && c != null)
+            _runner.StopCoroutine(c);
+        _running.Remove(key);
+    }
+
+    private static IEnumerator Countdown(string key, float seconds, Action onTimeout)
+    {
+        yield return new WaitForSecondsRealtime(seconds);
+        _running.Remove(key);
+        try { onTimeout?.Invoke(); }
+        catch (Exception ex) { Debug.LogException(ex); }
+    }
 }

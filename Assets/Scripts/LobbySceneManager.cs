@@ -33,6 +33,12 @@ public class LobbySceneManager : MonoBehaviour
     }
 
     [SerializeField]
+    private bool canRespondCard = false;
+
+    [SerializeField]
+    private TextMeshProUGUI pointsText;
+
+    [SerializeField]
     private GameObject TeamChoiceObject;
 
     private string currentTeamId;
@@ -41,9 +47,10 @@ public class LobbySceneManager : MonoBehaviour
     public GameStateData CurrentGameState { get => currentGameState; set => currentGameState = value; }
     public string CurrentTeamId { get => currentTeamId; set => currentTeamId = value; }
     public string CurrentBigSalonId { get => currentBigSalonId; set => currentBigSalonId = value; }
+    public bool CanRespondCard { get => canRespondCard; set => canRespondCard = value; }
 
     [Header("UI References")]
-    public TMP_Text statusText;
+
     public TMP_InputField createSalonInput;
 
     public TMP_Text pseudoConnecte;
@@ -72,8 +79,7 @@ public class LobbySceneManager : MonoBehaviour
 
     public BigSalonInfo actualBigSalon;
 
-    [SerializeField]
-    public GameObject creationTeamObject;
+
 
 
 
@@ -91,11 +97,13 @@ public class LobbySceneManager : MonoBehaviour
         }
         return false;
     }
+
+
     private void Awake()
     {
         // Determine if current user is admin, mauybe check for multiple roles
 
-        creationTeamObject.gameObject.SetActive(IsAdmin());
+        buttonObjectCreateTeam.gameObject.SetActive(IsAdmin());
 
           if (startGameButton != null)
             startGameButton.gameObject.SetActive(IsPlayer());
@@ -120,15 +128,7 @@ public class LobbySceneManager : MonoBehaviour
         if (openBigSalonPanelButton != null)
             openBigSalonPanelButton.OnClick.AddListener(ShowBigSalonPanel);
 
-        if (bsBackToLobbyButton != null)
-            bsBackToLobbyButton.OnClick.AddListener(() => {
-                bigSalonPanel.SetActive(false);
-                // show your normal lobby screen again
-                ChangeScreen(GameScreen.LOBBY);
-            });
-
-        if (bsRefreshButton != null)
-            bsRefreshButton.OnClick.AddListener(RequestBigSalonsList);
+  
 
     }
 
@@ -269,20 +269,12 @@ public class LobbySceneManager : MonoBehaviour
         }
         string id = Guid.NewGuid().ToString();
         CreateTeam(CurrentBigSalonId, id, nameSalonEntry.text, whiteList);
+
+        creationEquipe.gameObject.SetActive(false);
     }
    
 
-    private async void OnDeleteSalon(string salonId)
-    {
-        if (!IsAdmin())
-        {
-            statusText.text = "Not authorized to delete salons.";
-            return;
-        }
-        var packet = new JObject { ["type"] = "deleteSalon", ["salonId"] = salonId };
-        await ws.SendText(packet.ToString());
-        statusText.text = $"Deleted salon '{salonId}'.";
-    }
+
 
     
     private void ChangeScreen(GameScreen screen )
@@ -351,7 +343,7 @@ public class LobbySceneManager : MonoBehaviour
 
         WsClient.Instance.AskStartGame(startRequest);
 
-
+        startGameButton.gameObject.SetActive(false);
         turnLabel.text = "Attente des autres joueurs...";
     }
 
@@ -467,12 +459,7 @@ public class LobbySceneManager : MonoBehaviour
             }*/
         }
         var activeArea = game.CurrentArea;
-        if (!CanChangeArea(activeArea))
-        {
-            //set message that area cant change
-            turnInfoLabel.text = "Besoin de validation par un intervenant";
-            return;
-        }
+
 
 
         if (activeArea == -1)
@@ -516,6 +503,14 @@ public class LobbySceneManager : MonoBehaviour
 
         if (card != null)
         {
+            if (!CanChangeArea(card))
+            {
+                //set message that area cant change
+                turnInfoLabel.text = "Besoin de validation par un intervenant"; 
+                SetActionButtons(true);
+                return;
+            }
+
             AnimationManager.Instance.AnimationSelectionCard(area, randomCase,   card);
 
            
@@ -550,57 +545,34 @@ public class LobbySceneManager : MonoBehaviour
     }
 
 
-    private bool CanChangeArea(int actualArea)
+    private bool CanChangeArea(CardData card)
     {
-        //check all teh cases
 
-        if (actualArea == 0)
+        if (card.IdArea == 0 || card.IdArea == 1)
+        {
             return true;
-
-        var area = BoardManager.Instance.GetAreaById(actualArea);
-     
-
-
-        foreach (var cases in area.CasesOnArea)
-        {
-            if (!cases.Visited)
-                return true;
         }
-
-        foreach (var cases in area.CasesOnArea)
+        else
         {
-            if(cases.TypeCase == TypeCard.QUESTION && cases.CaseData != null)
+            var cardsToCheck = CurrentGameState.Board.Where(x => x.IdArea == card.IdArea-1).ToList();
+
+            foreach (var ctc in cardsToCheck)
             {
-                if(cases.CaseData.NeedProEvaluation == true && cases.Visited && currentGameState.Board.FirstOrDefault(x => x.Id == cases.CaseData.Id).Unlocked && cases.CaseData.ProEvaluationResult == EvaluationResult.NONE)
+                if(ctc.NeedProEvaluation && ctc.ProEvaluationResult != EvaluationResult.GOOD)
                 {
-                    statusText.text = "En attente de validation par un intervenant";
                     return false;
                 }
-
             }
-
-
         }
-      
-
-
-
+        
         return true;
+
     }
 
 
     public async void OnSendSharedMessage(string msgText)
     {
-       /* if (string.IsNullOrEmpty(currentSalonId)) return;
-
-        var packet = new JObject
-        {
-            ["type"] = "setSharedMessage",
-            ["salonId"] = currentSalonId,
-            ["message"] = msgText ?? ""
-        };
-
-        await ws.SendText(packet.ToString());*/
+     WsClient.Instance.SendMessageSharedLobby(msgText);
     }
 
     #endregion
@@ -673,12 +645,12 @@ public class LobbySceneManager : MonoBehaviour
 
 
 
-    public async void RequestBigSalonsList()
+    public void RequestBigSalonsList()
     {
         WsClient.Instance.GetSalons();
     }
 
-    public async void CreateTeam(string bigSalonId, string salonId, string name, List<string> whiteList)
+    public void CreateTeam(string bigSalonId, string salonId, string name, List<string> whiteList)
     {
         SalonInfo teamToCreate = new SalonInfo
         {
@@ -691,22 +663,15 @@ public class LobbySceneManager : MonoBehaviour
     }
    
     // Delete a sub-salon from a Big Salon
-    public async void DeleteSalon( string salonId)
+    public void DeleteSalon(DeleteTeamRequest deleteTeamRequest)
     {
-        /*string bigSalonId = currentBigSalonId;
+        WsClient.Instance.DeleteTeam(deleteTeamRequest);
 
-        if (string.IsNullOrEmpty(bigSalonId) || string.IsNullOrEmpty(salonId)) return;
-
-        var pkt = new JObject
-        {
-            ["type"] = "deleteSubSalon",
-            ["bigSalonId"] = bigSalonId,
-            ["salonId"] = salonId
-        };
-
-        await ws.SendText(pkt.ToString());*/
     }
-
+    public void DeleteBigSalon(string salonId)
+    {
+        WsClient.Instance.DeleteBigSalon(salonId);
+    }
 
     public async void JoinSalon(string salonId)
     {
@@ -716,7 +681,7 @@ public class LobbySceneManager : MonoBehaviour
 
         if (string.IsNullOrWhiteSpace(bigSalonId) || string.IsNullOrWhiteSpace(salonId))
         {
-            statusText.text = "Missing big salon or salon id.";
+         
             return;
         }
 
@@ -732,25 +697,23 @@ public class LobbySceneManager : MonoBehaviour
         {
             WsClient.Instance.JoinTeamOnSalon(bigSalonId, user, IsPlayer(), salonId);
             // optimistic UI: show the game screen while we wait for server snapshot/events
-            statusText.text = $"Joining salon '{salonId}'...";
+       
             ChangeScreen(GameScreen.GAME);   // you said you'll manage starting/restoring the game
-            turnLabel.text = "Waiting for game state...";
+            turnLabel.text = "En attente du lancement...";
         }
         catch (Exception ex)
         {
             Debug.LogError($"JoinSalon send failed: {ex.Message}");
-            statusText.text = "Failed to join salon.";
+     
         }
     }
 
 
     [Header("Big Salon UI")]
     public GameObject bigSalonPanel;
-    public TwilyButton bsBackToLobbyButton;
-    public TwilyButton bsRefreshButton;
 
-    public TMP_Text bsTitleText;          // TopBar Title
-    public TMP_Text bsHeaderText;         // RightCol BigHeaderText
+
+
 
     public Transform bigSalonListContainer;     // LeftCol BigSalonList/Content
 
@@ -767,7 +730,6 @@ public class LobbySceneManager : MonoBehaviour
     {
         ChangeScreen(GameScreen.LOBBY); // optional: hide game UI if needed
         bigSalonPanel.SetActive(true);
-        bsTitleText.text = "Big Salons";
         RequestBigSalonsList();
     }
 
@@ -881,6 +843,27 @@ public class LobbySceneManager : MonoBehaviour
         formCreationBigSalon.SetActive(false);
     }
 
+
+    [SerializeField]
+    private GameObject creationEquipe;
+    [SerializeField]
+    private GameObject buttonObjectCreateTeam;
+    public void CloseCreationSalon()
+    {
+        formCreationBigSalon.SetActive(false);
+    }
+
+
+    public void OpenCreationEquipe()
+    {
+        creationEquipe.SetActive(true);
+    }
+    public void CloseCreationEquipe()
+    {
+        creationEquipe.SetActive(false);
+    }
+
+
     #endregion
 
     #region choice role
@@ -912,6 +895,7 @@ public class LobbySceneManager : MonoBehaviour
     public GameStateData SyncDataFromServer(GameStateData data)
     {
         currentGameState = data;
+        pointsText.text = data.TotalScore.ToString();
         BoardManager.Instance.SyncCardFromServer(data);
         BoardManager.Instance.SetupBoardFromServer(data);
         if (data.CurrentPlayerId == Authentificator.Instance.Id)

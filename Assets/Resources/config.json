@@ -1,0 +1,9 @@
+{
+  "serverWebAPIAdressDebug": "http://localhost/wordpress/wp-json/wp/v2/users/me",
+  "serverWebTokenDebug": "http://localhost/wordpress/wp-json/jwt-auth/v1/token",
+  "serverGameAdressDebug": "ws://localhost:32770/ws",
+
+  "serverWebAPIAdress": "http://localhost/wordpress/wp-json/wp/v2/users/me",
+  "serverWebToken": "http://localhost/wordpress/wp-json/jwt-auth/v1/token",
+  "serverGameAdress": "ws://localhost:32770/ws"
+}

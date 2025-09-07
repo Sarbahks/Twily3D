@@ -1,6 +1,7 @@
 using NUnit.Framework;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using TMPro;
 using Unity.VisualScripting;
 using UnityEngine;
@@ -63,12 +64,15 @@ public class InGameMenuManager : MonoBehaviour
 
     
     [SerializeField]
-    private CanvasGroup charactersCG;
+    private CanvasGroup charactersCG;    
+    [SerializeField]
+    private CanvasGroup documentsCG;
 
     [SerializeField]
     private TextMeshProUGUI textShared;
 
-
+    [SerializeField]
+    private DocumentViewer documentViewer;
     private void  OpenCanvasGroup(CanvasGroup cg)
     {
         cg.alpha = 1;
@@ -83,6 +87,8 @@ public class InGameMenuManager : MonoBehaviour
 
     public void OpenPageMenu(MenuType type)
     {
+        textShared.text = LobbySceneManager.Instance.CurrentGameState.SharedMessage;
+
         foreach(var t in tabs)
         {
             t.SetSelected(t.TabType == type);
@@ -95,43 +101,68 @@ public class InGameMenuManager : MonoBehaviour
             case MenuType.MENUCARDSPLAYER:
                 CloseCanvasGroup(admincardCG);
                 CloseCanvasGroup(charactersCG);
+                CloseCanvasGroup (documentsCG);
                 OpenCanvasGroup(playercardCG);
                 break;
             case MenuType.MENUCHARACTERS:
                 DashBoard.OpenDashBoard();
                 CloseCanvasGroup(playercardCG);
                 CloseCanvasGroup(admincardCG);
+                CloseCanvasGroup(documentsCG);
                 OpenCanvasGroup(charactersCG);
                 break;
             case MenuType.MENUCARDSADMIN:
                 CloseCanvasGroup(charactersCG);
                 CloseCanvasGroup(playercardCG);
+                CloseCanvasGroup(documentsCG);
                 OpenCanvasGroup(admincardCG);
+                break;
+                case MenuType.MENUCARDDOCS:
+                CloseCanvasGroup(charactersCG);
+                CloseCanvasGroup(playercardCG);
+                CloseCanvasGroup(admincardCG);
+                OpenCanvasGroup(documentsCG);
                 break;
         }
 
 
     }
 
+    public void HighlightCard(CardData card)
+    {
+       var cards =  menuCardAreaPlayer.GetAllCardsInArea();
+
+        foreach(var carui in cards)
+        {
+            if(carui.BoardCard != null && carui.BoardCard.Id == card.Id)
+            {
+                carui.HilightCard();
+            }
+            else
+            {
+                carui.DelightCard();
+            }
+        }
+    }
+
     public void ActualizeCardsUI(List<CardData> cards)
     {
         
             menuCardAreaPlayer.DeleteAllCardsInArea();
-        
+
+
+                cards = cards
+            .OrderBy(c => c.IdArea == 0)   // false (non-0) before true (0)
+            .ThenBy(c => c.IdArea)         // sort by areaId normally
+            .ToList();
+
 
         // Create new UI elements for each card
         foreach (var newCard in cards)
         {
-            if(newCard.TypeCard == TypeCard.PROFILE)//profile page
-            {
-              //  Debug.Log("card that are not questions");
-          
-            }
-            else
-            {
-                
+            if(newCard.TypeCard != TypeCard.PROFILE)//profile page
+            { 
                var go = menuCardAreaPlayer.AddCardToArea(cardUIPrefab);//
-          //  var go =   Instantiate(cardUIPrefab); // cleaner instantiation
                 var bc = go.GetComponent<BoardCaseUI>();
                 bc.Initialize(newCard);
       
@@ -153,6 +184,10 @@ public class InGameMenuManager : MonoBehaviour
     {
         // Destroy all existing card UI elements
         menuCardAreaAdmin.DeleteAllCardsInArea();
+        cards = cards
+        .OrderBy(c => c.IdArea == 0)   // false (non-0) before true (0)
+        .ThenBy(c => c.IdArea)         // sort by areaId normally
+        .ToList();
 
         // Create new UI elements for each card
         foreach (var newCard in cards)
@@ -187,5 +222,6 @@ public enum MenuType
 {
     MENUCARDSPLAYER,
     MENUCHARACTERS,
-    MENUCARDSADMIN
+    MENUCARDSADMIN,
+    MENUCARDDOCS
 }

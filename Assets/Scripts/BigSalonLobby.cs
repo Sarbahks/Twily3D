@@ -66,19 +66,17 @@ public class BigSalonLobby : MonoBehaviour
 
                 item.Setup(subsalon);
             }
-
-            var salonGo = Instantiate(salonPrefab, salonAreas);
+                var idBigsalon = salonInfo.Id;
+                var salonGo = Instantiate(salonPrefab, salonAreas);
             var salonScript = salonGo.GetComponent<SalonItem>();
             if(salonScript != null)
             {
-                salonScript.SetupSalonItem(subsalon);
+                salonScript.SetupSalonItem(subsalon, idBigsalon);
             }
 
         }
         }
     }
-
-
 
 
 

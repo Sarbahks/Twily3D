@@ -16,6 +16,8 @@ public class SalonItem : MonoBehaviour
     [SerializeField]
     private string textStatutGameEnded = "Terminée";
 
+    [SerializeField]
+    private GameObject deleteButton;
 
     [SerializeField]
     private TextMeshProUGUI salonName;
@@ -27,11 +29,12 @@ public class SalonItem : MonoBehaviour
 
     private SalonInfo info;
 
+    private string idBigSalon;
 
-    public void SetupSalonItem(SalonInfo salon)
+    public void SetupSalonItem(SalonInfo salon, string idBigSalon)
     {
         info = salon;
-
+        this.idBigSalon = idBigSalon;
         salonName.text = salon.Name;
 
         if(salon.UsersInSalon == null || salon.UsersInSalon.Count == 0)
@@ -59,6 +62,11 @@ public class SalonItem : MonoBehaviour
                 state.text = textStatutGameOngoing;
             }
         }
+
+        if (!LobbySceneManager.Instance.IsAdmin())
+        {
+            deleteButton.SetActive(false);
+        }
     }
 
     public void JoinSalon()
@@ -69,6 +77,7 @@ public class SalonItem : MonoBehaviour
             id = info.Id;
         }
         LobbySceneManager.Instance.JoinSalon(id);
+        ChatPanel.Instance.ActivateChat();//check ow activate chat
     }
 
     public void DeleteSalon()
@@ -78,6 +87,13 @@ public class SalonItem : MonoBehaviour
         {
             id = info.Id;
         }
-        LobbySceneManager.Instance.DeleteSalon(id);
+
+        DeleteTeamRequest request = new DeleteTeamRequest
+        {
+            IdSalon = idBigSalon,
+            IdTeam = id
+        };
+
+        LobbySceneManager.Instance.DeleteSalon(request);
     }
 }

@@ -542,7 +542,7 @@ public enum EvaluationResult
 [Serializable]
 public class ChatDTO
 {
-    public string FromId {  get; set; } 
+    public int FromId {  get; set; } 
     public string FromName { get; set; }
     public string Text { get; set; }
     public long Ts { get; set; }
@@ -556,7 +556,8 @@ public class ChatTarget
 {
     public TypeChatTarget TypeChatTarget { get; set; }
     public int IdTarget { get; set; }
-    public string StringIdTarget { get; set; }
+    public string StringIdTeam { get; set; }
+    public string StringIdSalon { get; set; }
 }
 [JsonConverter(typeof(JsonStringEnumConverter))]
 [Serializable]
@@ -681,4 +682,42 @@ public class CrisisSubmittedResponse
     public string IdSalon { get; set; }
     public string IdTeam { get; set; }
     public GameStateData Game { get; set; }
+}
+
+
+[Serializable]
+public class SharedMessageRequest
+{
+    public string IdSalon { get; set; }
+    public string IdTeam { get; set; }
+
+    public string TextShared { get; set; }
+
+}
+
+[Serializable]
+public class SharedMessageResponse
+{
+    public string IdSalon { get; set; }
+    public string IdTeam { get; set; }
+
+    public string TextShared { get; set; }
+}
+[Serializable]
+public class DeleteTeamRequest
+{
+    public string IdSalon { get; set; } = ""; // big salon id
+    public string IdTeam { get; set; } = ""; // team/sub-salon id
+}
+[Serializable]
+public class ConnextionInfo
+{
+    public string serverWebAPIAdressDebug { get; set; }
+    public string serverWebTokenDebug { get; set; }
+    public string serverGameAdressDebug { get; set; }
+
+    public string serverWebAPIAdress { get; set; }
+    public string serverWebToken { get; set; }
+    public string serverGameAdress { get; set; }
+
 }

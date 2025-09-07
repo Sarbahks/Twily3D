@@ -32,17 +32,21 @@ public class AuthManager : MonoBehaviour
     public TextMeshProUGUI statusText;
 
     // Endpoints
-    private const string TOKEN_URL = "http://localhost/wordpress/wp-json/jwt-auth/v1/token";
-    private const string USER_URL = "http://localhost/wordpress/wp-json/wp/v2/users/me";
+    private string TOKEN_URL = "http://localhost/wordpress/wp-json/jwt-auth/v1/token";
+    private string USER_URL = "http://localhost/wordpress/wp-json/wp/v2/users/me";
 
     void Start()
     {
+        ConfigLoader.Instance.Load(); // sync
+        TOKEN_URL = ConfigLoader.Instance.TokenUrl;
+        USER_URL = ConfigLoader.Instance.ApiUrl;
  
+    }
         // Optionally: auto-login if token exists   remove it fot test
        /* var savedToken = PlayerPrefs.GetString("jwt_token", "");
         if (!string.IsNullOrEmpty(savedToken))
             StartCoroutine(ValidateAndFetchUser(savedToken));*/
-    }
+  
 
     public void OnLoginClicked()
     {
@@ -71,7 +75,7 @@ public class AuthManager : MonoBehaviour
 
     IEnumerator LoginCoroutine(string email, string password)
     {
-        statusText.text = "Logging in…";
+        statusText.text = "Connexion…";
 
         // Prepare form
         WWWForm form = new WWWForm();

@@ -1,3 +1,4 @@
+using System.Linq;
 using TMPro;
 using UnityEngine;
 
@@ -28,18 +29,30 @@ public class ResumeGame : MonoBehaviour
     private GameObject playerPrefab;
 
     [SerializeField]
+    private TextMeshProUGUI cartesJouées;
+
+    [SerializeField]
+    private TextMeshProUGUI anctiveArea;
+
+
+    [SerializeField]
     private Transform playerArea;
     public void SetupResumeGame(GameStateData gameState, string salonName)
     {
         this.salonName.text = salonName;
-        dateDebut.text = gameState.StartGame.ToString();
-        dernierTour.text = gameState.TimeLastTurn.ToString();
+       // dateDebut.text = gameState.StartGame.ToString();
+       // dernierTour.text = gameState.TimeLastTurn.ToString();
         points.text = gameState.TotalScore.ToString();
-        termine.text = gameState.Completed ? "Oui": "Non";
-        timeTermine.text = gameState.EndedTime.ToString();
+      //  termine.text = gameState.Completed ? "Oui": "Non";
+      //  timeTermine.text = gameState.EndedTime.ToString();
         shared.text = gameState.SharedMessage;
 
-        foreach(var player in gameState.Players)
+        string cardsUnlocked = gameState.Board.Where(x => x.Unlocked).ToList().Count.ToString();
+        string totalCard = gameState.Board.Count.ToString() ;
+
+        cartesJouées.text = cardsUnlocked  +"/"+ totalCard;
+        /*
+        foreach (var player in gameState.Players)
         {
             if (player.userInfo == null)
                 continue;
@@ -51,7 +64,7 @@ public class ResumeGame : MonoBehaviour
                 script.SetupParticipant(player.userInfo.Name, player.score);
             }
        
-        }
+        }*/
     }
 
 }

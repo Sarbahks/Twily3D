@@ -2,8 +2,9 @@ using Newtonsoft.Json.Linq;
 using System;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 
-public class BoardCaseUI : MonoBehaviour
+public class BoardCaseUI : MonoBehaviour, IPointerClickHandler
 {
     [SerializeField]
     private CardData boardCard;
@@ -48,8 +49,7 @@ public class BoardCaseUI : MonoBehaviour
     private GameObject bgBonus;
         [SerializeField]
     private GameObject bgDefi;
-        [SerializeField]
-    private GameObject bgProfile;      
+         
     [SerializeField]
     private GameObject bgKpi;
 
@@ -57,39 +57,9 @@ public class BoardCaseUI : MonoBehaviour
     private GameObject bgProfileManagement;
 
  
-    [SerializeField]
-    private TextMeshProUGUI specialTitle;
-
-    [SerializeField]
-    private TextMeshProUGUI specialQuestion;
-    [SerializeField]
-    private TextMeshProUGUI specialConsigne;
 
 
 
-    [SerializeField]
-    private TextMeshProUGUI profileTitle;    
-    [SerializeField]
-    private TextMeshProUGUI profileDescription;
-    [SerializeField]
-    private TextMeshProUGUI profileDiploma;
-    [SerializeField]
-    private TextMeshProUGUI profileRole;
-    [SerializeField]
-    private TextMeshProUGUI profileExp;
-    [SerializeField]
-    private TextMeshProUGUI profileStrongPoint;
-    [SerializeField]
-    private TextMeshProUGUI profileWeakPoint;
-
-    [SerializeField]
-    private GameObject questionObject;
-
-        [SerializeField]
-    private GameObject specialObject;
-
-        [SerializeField]
-    private GameObject profileObject;
 
 
 
@@ -132,10 +102,28 @@ public class BoardCaseUI : MonoBehaviour
         [SerializeField]
     private GameObject goodIconAdmin;
 
+    [SerializeField]
+    private bool selected = false;
+
+
+    [SerializeField]
+    private GameObject selectedEffect;
 
     public void Initialize(CardData bc)
     {
         ApplyCaseData(bc, isAdmin: false);
+
+        
+    }
+
+    public void HilightCard()
+    {
+        selectedEffect.SetActive(true);
+    }
+
+    public void DelightCard()
+    {
+        selectedEffect.SetActive(false);
     }
 
     public void InitializeAdmin(CardData bc)
@@ -149,7 +137,7 @@ public class BoardCaseUI : MonoBehaviour
 
 
         SetupCardBG(bc);
-
+        SetupCardInfo(bc);
         boardCard = bc;
         id = bc.Id;
 
@@ -162,6 +150,16 @@ public class BoardCaseUI : MonoBehaviour
         {
             SetupValidationPlayer(bc);
         }
+    }
+
+    private void SetupCardInfo(CardData bc)
+    {
+        //setup values of the card depending on the card
+
+        responseInput.text = bc.Response;
+        title.text = bc.Title;
+        consigne.text = bc.Instruction;
+        question.text = bc.Question;    
     }
 
     private void DisableIconResult()
@@ -211,19 +209,23 @@ public class BoardCaseUI : MonoBehaviour
         }
     }
 
+    [SerializeField]
+    private GameObject verifButton;
+
     private void SetupValidationAdmin(CardData bc)
     {
-        if(bc.NeedProEvaluation)
-            {
+        if(!bc.NeedProEvaluation)
+        {
             StatusAdmin.SetActive(false);
             StatusPlayer.SetActive(false);
+            verifButton.SetActive(false);
         }
         else
         {
 
             StatusAdmin.SetActive(true);
             StatusPlayer.SetActive(false);
-
+            verifButton.SetActive(true);
             DisableIconResult();
             switch (bc.ProEvaluationResult)
             {
@@ -260,8 +262,7 @@ public class BoardCaseUI : MonoBehaviour
         switch (cd.TypeCard)
         {
             case TypeCard.QUESTION:
-                questionObject.SetActive(true);
-
+               
                 switch (cd.IdArea)
                 {
                     case 1: bgType1.SetActive(true); break;
@@ -276,36 +277,26 @@ public class BoardCaseUI : MonoBehaviour
                 break;
 
             case TypeCard.BONUS:
+                bgBonus.SetActive(true);
+                break;
             case TypeCard.DEFI:
+                bgDefi.SetActive(true);
+                break;
             case TypeCard.KPI:
+                bgKpi.SetActive(true);
+                break;
+
             case TypeCard.PROFILMANAGEMENT:
-                specialObject.SetActive(true);
-
-                specialTitle.text = cd.Title;
-                specialQuestion.text = cd.Question;
-                specialConsigne.text = cd.Instruction;
+                bgProfileManagement.SetActive(true);
                 break;
 
-            case TypeCard.PROFILE:
-                profileObject.SetActive(true);
-
-                profileTitle.text = cd.Title;
-                profileDescription.text = cd.Description;
-                profileDiploma.text = cd.Degree;
-                profileRole.text = cd.Role;
-                profileExp.text = cd.Experience;
-                profileStrongPoint.text = cd.StrongPoints;
-                profileWeakPoint.text = cd.WeakPoints;
-                break;
         }
     }
 
 
     private void DesactivateAllBGS()
     {
-        questionObject.SetActive(false);
-        specialObject.SetActive(false);
-        profileObject.SetActive(false);
+
 
 
         // Deactivate all backgrounds
@@ -313,6 +304,11 @@ public class BoardCaseUI : MonoBehaviour
         bgType2.SetActive(false);
         bgType3.SetActive(false);
         bgType4.SetActive(false);
+
+        bgKpi.SetActive(false);
+        bgBonus.SetActive(false) ;
+        bgProfileManagement.SetActive(false);
+        bgDefi.SetActive(false);    
 
 
     }
@@ -326,6 +322,12 @@ public class BoardCaseUI : MonoBehaviour
         LobbySceneManager.Instance.ChangeCardAdminState(BoardCard.Id, EvaluationResult.GOOD);
     }
 
+    public void OnPointerClick(PointerEventData eventData)
+    {
+        if(boardCard == null) return;
 
+        bool canrespond = LobbySceneManager.Instance.CanRespondCard && LobbySceneManager.Instance.CurrentGameState.CurrentPlayerId == Authentificator.Instance.Id;
 
+        ZoomedCard.Instance.Initialize(boardCard, canrespond);
+    }
 }

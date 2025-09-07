@@ -63,7 +63,8 @@ public class CardDocument
     [SerializeField]
     private GameObject document;
 
-    public int CardDocId { get => cardDocId; set => cardDocId = value; }
+
+   public int CardDocId { get => cardDocId; set => cardDocId = value; }
     public GameObject Document { get => document; set => document = value; }
 }
 
